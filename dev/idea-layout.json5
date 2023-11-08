@@ -1,0 +1,36 @@
+{
+    mLayout: {
+        mGlobalArgs: {
+            // currently there must be only one layout element here, which is the top layout
+            // element for all global args.
+            "/column": {
+                lContent: [
+                    "/grid": {
+                        // These are the Quasar properties for the layout element (see https://quasar.dev/docs/)
+                        mProps: { columns: 3 },
+                        // These are CSS styles
+                        mStyle: {},
+                        // These are Quasar or Tailwind (https://tailwindcss.com/docs/installation) classes. 
+                        lClasses: [],
+                        // The elements of the grid
+                        lContent: [
+                            "bDoProcess", "bDoOverwrite", "bDoStoreProcessData",
+                        ]
+                    },
+                    "/grid": {
+                        // These are the Quasar properties for the layout element (see https://quasar.dev/docs/)
+                        mProps: { columns: 2 },
+                        // These are CSS styles
+                        mStyle: {},
+                        // These are Quasar or Tailwind (https://tailwindcss.com/docs/installation) classes. 
+                        lClasses: [],
+                        // The elements of the grid
+                        lContent: [
+                            "iConfigStart", "iConfigCount", 
+                        ]
+                    },
+                ]                    
+            },
+        }
+    }
+}
