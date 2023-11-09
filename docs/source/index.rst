@@ -16,22 +16,17 @@
 .. #    
 .. # 
 .. #  </LICENSE>
-.. Functional Json documentation master file, created by
-   sphinx-quickstart on Wed May 18 12:40:44 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
 
-ISON - Functional JSON
-===========================================
-*A JSON compatible functional programming language*
 
+Web GUI
+=======
 
 .. toctree::
    :maxdepth: 4
    :caption: Contents:
 
    get_started
-
+   image_viewer
 
 .. Indices and tables
 .. ==================

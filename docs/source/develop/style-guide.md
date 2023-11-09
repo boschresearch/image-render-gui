@@ -1,7 +1,7 @@
 
-## Programming Style Guide
+# Programming Style Guide
 
-### Linter & Autoformatter
+## Linter & Autoformatter
 
 Use `black` as auto formatter and `flake8` as linter. For `flake8` set the following paramters:
 
@@ -35,7 +35,7 @@ In VS-Code use the following settings:
 ],
 :::
 
-### Variable Conventions
+## Variable Conventions
 
 Variable names need to start with a lower-case letter indicating the variable type. This helps other programmers to understand your code more easily. For example, a variable of type `dict` must start with `dic`, as in `dicValues`. The first letter of descriptive name must start with a capital letter. If there are mulitple words, use camel-case, as in `dicHouseHeights`.
 
@@ -70,7 +70,7 @@ Variables of variable type or complex types like classes, must start with an `x`
 
 If it is not clear for the linter of what type a variable is from the variable initialization, then declare its' type.
 
-### Function Conventions
+## Function Conventions
 
 Function names start with a capital letter and use camel-case for multiple words, as in `MyWonderfulFunction`. This distinguishes them from variable names.
 
@@ -89,7 +89,7 @@ def Run(*,
 
 **Function interface argument** names must start with an underscore (as in the example above), so that there is a distinction between interface variables and local variables in the function body.
 
-### Classes
+## Classes
 
 - *Ideally*, each class should be defined in its own python file. 
 - The filename *must* start with `cls_` as in `cls_complex.py`. 
@@ -97,7 +97,7 @@ def Run(*,
 - Classes derived from type `enum.Enum` must have a name that starts with a capital `E`, as in `EMyEnum`. 
 
 
-### Block-end Comments
+## Block-end Comments
 
 All ends of indented block that are required by Python need a `# end[command] [comment]` line at the end. For example, `if`, `for`, `while`, `with`, `def`, `class`, etc. require you to indent the containing code. These blocks must be ended like this:
 :::python
