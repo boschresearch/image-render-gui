@@ -20,10 +20,12 @@
 # </LICENSE>
 ###
 
+import os
 import enum
 import asyncio
 import functools
 import concurrent
+from datetime import datetime
 from pathlib import Path
 from nicegui import ui, Tailwind, events
 from typing import Callable, Optional, Any
@@ -214,7 +216,11 @@ class CVariantGroupProductView:
                                 if self._xProdView.iGroupCount == 1:
                                     self._uiSelGrp.set_visibility(False)
                                 # endif
-                                self._uiButScan = ui.button("Scan Filesystem", on_click=self.ScanArtefacts)
+                                self._uiButScan = ui.button(
+                                    "Scan Filesystem", on_click=lambda: self.ScanArtefacts(_bForceRescan=True)
+                                )
+                                self._uiLabelScan = ui.label("")
+                                self._UpdateScanCacheLabel()
                                 self._uiSpinScan = ui.spinner("dots", size="xl", color="primary")
                                 self._uiSpinScan.set_visibility(False)
 
@@ -355,7 +361,35 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    async def ScanArtefacts(self):
+    def _GetScanCacheFilename(self, _sGroup: str) -> Path:
+        return self._xVariantGroup.pathVariants / "_cache" / f"fs-scan-{_sGroup}.pickle"
+
+    # enddef
+
+    # ##########################################################################################################
+    def _GetScanCacheFileDateTimeString(self, _sGroup: str) -> Optional[str]:
+        pathScanCache: Path = self._GetScanCacheFilename(_sGroup)
+        if not pathScanCache.exists():
+            return None
+        # endif
+
+        fTime: float = os.path.getmtime(pathScanCache.as_posix())
+        dtFile = datetime.utcfromtimestamp(fTime)
+
+        return dtFile.strftime("%d.%m.%Y, %H:%M:%S")
+
+    # enddef
+
+    # ##########################################################################################################
+    def _UpdateScanCacheLabel(self):
+        sSelGrp = str(self._uiSelGrp.value)
+        sDateTime = self._GetScanCacheFileDateTimeString(sSelGrp)
+        self._uiLabelScan.set_text(f"Last scan: {sDateTime}")
+
+    # enddef
+
+    # ##########################################################################################################
+    async def ScanArtefacts(self, *, _bForceRescan: bool = False):
         if self._iBlockScanArtefacts == 0:
             self._iBlockScanArtefacts += 1
             self._uiButScan.disable()
@@ -364,12 +398,23 @@ class CVariantGroupProductView:
             self._uiSpinScan.set_visibility(True)
             try:
                 sSelGrp = str(self._uiSelGrp.value)
+                pathScanCache: Path = self._GetScanCacheFilename(sSelGrp)
+                if pathScanCache.exists() and _bForceRescan is False:
+                    xLoop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as xPool:
+                        await xLoop.run_in_executor(xPool, lambda: self._xProdView.DeserializeScan(pathScanCache))
+                    # endwith
+                else:
+                    self._uiLabelScan.set_text("Scanning...")
+                    pathScanCache.parent.mkdir(parents=True, exist_ok=True)
 
-                xLoop = asyncio.get_running_loop()
-                with concurrent.futures.ThreadPoolExecutor() as xPool:
-                    await xLoop.run_in_executor(xPool, lambda: self._xProdView.ScanArtefacts(_sGroupId=sSelGrp))
-                # endwith
-
+                    xLoop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as xPool:
+                        await xLoop.run_in_executor(xPool, lambda: self._xProdView.ScanArtefacts(_sGroupId=sSelGrp))
+                        await xLoop.run_in_executor(xPool, lambda: self._xProdView.SerializeScan(pathScanCache))
+                    # endwith
+                    self._UpdateScanCacheLabel()
+                # endif
                 self.UpdateGroup()
             except Exception as xEx:
                 self._xMessage.ShowException("Error scanning artefacts", xEx)
