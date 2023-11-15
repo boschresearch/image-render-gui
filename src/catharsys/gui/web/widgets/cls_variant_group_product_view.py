@@ -1546,18 +1546,25 @@ class CVariantGroupProductView:
                     if dicDti["bOK"] is True:
                         lMetaType = dicDti["lCfgType"][4:]
                         if lMetaType[0] == "json":
-                            dicPrint: dict = dicMetaData.get("mPrint")
-                            if isinstance(dicPrint, dict):
-                                dicVars = self._xProdView.dicVarValues
-                                self._xParser.dicVarData.clear()
-                                lResult = self._xParser.Process(
-                                    dicMetaData, lProcessPaths=["sRelPath"], dicConstVars=dicVars
-                                )
-                                # print(lResult)
-                                pathJson: Path = pathArt.parent / lResult[0]["sRelPath"]
-                                # print(pathJson)
-                                if pathJson.exists():
-                                    dicData = anyfile.LoadJson(pathJson)
+                            dicVars = self._xProdView.dicVarValues
+                            self._xParser.dicVarData.clear()
+                            lResult = self._xParser.Process(
+                                dicMetaData, lProcessPaths=["sRelPath"], dicConstVars=dicVars
+                            )
+                            # print(lResult)
+                            pathJson: Path = pathArt.parent / lResult[0]["sRelPath"]
+                            # print(pathJson)
+                            if pathJson.exists():
+                                dicData = anyfile.LoadJson(pathJson)
+                                sExpectDti: str = dicMetaData.get("sExpectDti")
+                                if sExpectDti is not None and not config.IsConfigType(dicData, sExpectDti):
+                                    continue
+                                # endif
+
+                                # ##################################################
+                                # PRINT Meta Text block
+                                dicPrint: dict = dicMetaData.get("mPrint")
+                                if isinstance(dicPrint, dict):
                                     # print(dicData)
                                     dicProcPrint = self._xParser.Process(dicPrint, dicConstVars={"meta_data": dicData})
                                     # print(dicProcPrint)
@@ -1570,6 +1577,8 @@ class CVariantGroupProductView:
                                         # print(sTooltip)
                                     # endif
                                 # endif
+                                # ##################################################
+
                             # endif
                         # endif
                     # endif
