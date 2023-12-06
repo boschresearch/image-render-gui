@@ -25,7 +25,13 @@ from pathlib import Path
 from typing import Union, Any
 
 from nicegui.element import Element
-from nicegui import globals, helpers
+from nicegui import helpers
+
+try:
+    from nicegui import globals as ngcore
+except Exception:
+    from nicegui import core as ngcore
+# endtry
 
 
 # Need this image class to enable reloading files with same filename
@@ -41,7 +47,7 @@ class CUiImage(Element, component="image.js"):
         iTimeImage: int = int(os.path.getmtime(_pathImage.as_posix()))
         sUrl = f"/_nicegui/auto/static/{helpers.hash_file_path(_pathImage)}_{iTimeImage}/{_pathImage.name}"
 
-        self.source = globals.app.add_static_file(local_file=_pathImage, url_path=sUrl)
+        self.source = ngcore.app.add_static_file(local_file=_pathImage, url_path=sUrl)
         self._props["src"] = self.source
 
     # enddef

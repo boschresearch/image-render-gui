@@ -1595,7 +1595,7 @@ class CVariantGroupProductView:
                         # endwith
                     # endif
 
-                    with ui.menu().props("context-menu touch-position"):
+                    with ui.menu().props("context-menu"):
                         ui.menu_item(
                             "Copy full path to clipboard",
                             on_click=functools.partial(self._OnCopyImagePath, pathArt),

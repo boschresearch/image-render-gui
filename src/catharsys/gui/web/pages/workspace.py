@@ -27,7 +27,12 @@ import re
 import asyncio
 from typing import Union, Optional
 from nicegui import ui, events, app, Client, Tailwind
-from nicegui.welcome import get_all_ips as GetAllIps
+
+try:
+    from nicegui.welcome import get_all_ips as GetAllIps
+except Exception:
+    from nicegui.welcome import _get_all_ips as GetAllIps
+# endtry
 
 from fastapi.responses import RedirectResponse
 from datetime import datetime, timedelta
