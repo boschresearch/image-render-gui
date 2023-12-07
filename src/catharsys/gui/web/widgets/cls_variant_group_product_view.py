@@ -220,7 +220,6 @@ class CVariantGroupProductView:
                                     "Scan Filesystem", on_click=lambda: self.ScanArtefacts(_bForceRescan=True)
                                 )
                                 self._uiLabelScan = ui.label("")
-                                self._UpdateScanCacheLabel()
                                 self._uiSpinScan = ui.spinner("dots", size="xl", color="primary")
                                 self._uiSpinScan.set_visibility(False)
 
@@ -385,6 +384,15 @@ class CVariantGroupProductView:
         sSelGrp = str(self._uiSelGrp.value)
         sDateTime = self._GetScanCacheFileDateTimeString(sSelGrp)
         self._uiLabelScan.set_text(f"Last scan: {sDateTime}")
+        if self._xProdView.DoesScanMatchProdFile() is False:
+            # self._uiLabelScan.set_text("Please rescan to avoid errors due to changed production definition")
+            # self._uiLabelScan.classes(replace="text-negative")
+            self._xMessage.ShowMessage(
+                "Please rescan to avoid errors due to changed production definition",
+                _eType=EMessageType.WARNING,
+                _bDialog=False,
+            )
+        # endif
 
     # enddef
 
@@ -402,7 +410,9 @@ class CVariantGroupProductView:
                 if pathScanCache.exists() and _bForceRescan is False:
                     xLoop = asyncio.get_running_loop()
                     with concurrent.futures.ThreadPoolExecutor() as xPool:
-                        await xLoop.run_in_executor(xPool, lambda: self._xProdView.DeserializeScan(pathScanCache))
+                        await xLoop.run_in_executor(
+                            xPool, lambda: self._xProdView.DeserializeScan(pathScanCache, _bDoPrint=False)
+                        )
                     # endwith
                 else:
                     self._uiLabelScan.set_text("Scanning...")
@@ -413,8 +423,13 @@ class CVariantGroupProductView:
                         await xLoop.run_in_executor(xPool, lambda: self._xProdView.ScanArtefacts(_sGroupId=sSelGrp))
                         await xLoop.run_in_executor(xPool, lambda: self._xProdView.SerializeScan(pathScanCache))
                     # endwith
-                    self._UpdateScanCacheLabel()
                 # endif
+                lMessages = self._xProdView.GetMessages()
+                for sMessage in lMessages:
+                    await self._xMessage.AsyncShowMessage(sMessage, _eType=EMessageType.WARNING, _bDialog=False)
+                # endfor
+
+                self._UpdateScanCacheLabel()
                 self.UpdateGroup()
             except Exception as xEx:
                 self._xMessage.ShowException("Error scanning artefacts", xEx)
@@ -1632,7 +1647,7 @@ class CVariantGroupProductView:
     # ##########################################################################################################
     async def _OnCopyImagePath(self, _pathImage: Path, _xArgs: events.ClickEventArguments):
         try:
-            await ui.run_javascript(f'navigator.clipboard.writeText("{(_pathImage.as_posix())}")', respond=False)
+            ui.run_javascript(f'navigator.clipboard.writeText("{(_pathImage.as_posix())}")')
 
         except Exception as xEx:
             self._xMessage.ShowException("Error copying image path to clipboard", xEx)
@@ -1685,7 +1700,7 @@ class CVariantGroupProductView:
                 )
                 self._bShowPixinMessage = False
             # endif
-            await ui.run_javascript('window.open("https://pixin.app/", "_blank")', respond=False)
+            ui.run_javascript('window.open("https://pixin.app/", "_blank")')
             # await ui.run_javascript('window.open("https://pixin.app/", "_blank").focus()', respond=False)
 
         except Exception as xEx:

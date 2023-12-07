@@ -809,7 +809,7 @@ class CPageWorkspace:
                 self.xLogin.AddUserTempPassword(sUsername, _dtExpire=dtExpire, _lRights=["default"])
 
                 sLink += f"{sBaseLink}/{sLinkId}"
-                await ui.run_javascript(f'navigator.clipboard.writeText("{sLink}")', respond=False)
+                ui.run_javascript(f'navigator.clipboard.writeText("{sLink}")')
                 await self.xMessage.AsyncShowMessage(
                     "Link to user initial login copied to clipboard", _eType=EMessageType.INFO, _bDialog=False
                 )
@@ -897,7 +897,7 @@ class CPageWorkspace:
                 sLinkId: str = self.xLogin.ProvidePublicLinkId(sBaseLink, dtExpire)
 
                 sLink += f"{sBaseLink}/{sLinkId}"
-                await ui.run_javascript(f'navigator.clipboard.writeText("{sLink}")', respond=False)
+                ui.run_javascript(f'navigator.clipboard.writeText("{sLink}")')
                 await self.xMessage.AsyncShowMessage(
                     "Link to product view copied to clipboard", _eType=EMessageType.INFO, _bDialog=False
                 )

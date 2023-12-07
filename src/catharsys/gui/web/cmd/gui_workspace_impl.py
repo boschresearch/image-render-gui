@@ -141,7 +141,13 @@ def StartGui(_sPathWorkspace: str, _sFileBasenameLaunch: str, _sTimeout: str, _b
     pathSettings = guipaths.GetSettingsPath(pathWs)
     pathWsLock = pathSettings / "lock_gui_web.txt"
     if pathWsLock.exists():
-        print("GUI web server already running for this workspace")
+        print(
+            "GUI web server already running for this workspace.\n\n"
+            "If you are sure it isn't running, simply remove the lock file and start the gui again:\n"
+            f"> {pathWsLock}\n"
+            "\nIMPORTANT: Running multiple GUI web server instances for the same workspace\n"
+            "           can result in loss of data!\n\n"
+        )
         return
     # endif
 
