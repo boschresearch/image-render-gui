@@ -1018,7 +1018,7 @@ class CVariantGroupProductView:
                         self._dicArtViewDimRangeUi: dict[str, dict[str, CPosRange]] = dict()
                         for sArtTypeId, dicViewDimNames in self._xProdView.dicArtViewDimNames.items():
                             self._dicArtViewDimRangeUi[sArtTypeId] = dict()
-                            dicArtViewDimRangeUi: dict[str, CPosRange] = dict()
+                            dicViewDimRangeUi: dict[str, CPosRange] = dict()
                             for sDimKey, sArtVarName in dicViewDimNames.items():
                                 sArtVarId, eDimType = self._xProdView.GetDimIdType(sDimKey)
                                 if eDimType != EViewDimType.ARTVAR:
@@ -1026,21 +1026,22 @@ class CVariantGroupProductView:
                                 # endif
                                 iVarCnt = self._xProdView.GetSelectedArtefactVarValueCount(sArtTypeId, sArtVarId)
                                 if iVarCnt > 3:
-                                    dicArtViewDimRangeUi[sArtVarId] = CPosRange(
+                                    dicViewDimRangeUi[sDimKey] = CPosRange(
                                         _fMin=1,
                                         _fMax=iVarCnt,
                                         _fValueMin=1,
                                         _fValueMax=min(6, iVarCnt),
                                         _fRangeMin=1,
-                                        _fRangeMax=min(10, iVarCnt),
+                                        _fRangeMax=min(20, iVarCnt),
                                         _sLabel=sArtVarName,
                                         _eStyle=EPosRangeStyle.STACKED,
                                         _funcOnChanged=self._OnChangeViewRange,
                                     )
                                 # endif
                             # endfor art vars
+                            self._dicArtViewDimRangeUi[sArtTypeId] = dicViewDimRangeUi
                         # endfor art types
-
+                        # print(f"self._dicArtViewDimRangeUi: {self._dicArtViewDimRangeUi}")
                     # endwith column
                 # endwith card
             # endwith grid
@@ -1141,12 +1142,14 @@ class CVariantGroupProductView:
             # endif
 
             # Create view dimensions iteration structure
+            # print(f"self._dicViewDimRangeUi: {self._dicViewDimRangeUi}")
             self._xProdView.ClearViewDims()
             iMin: int
             iMax: int
             xSel: ui.select = None
             for xSel in self._lViewDimTypeUi:
                 sDimKey = str(xSel.value)
+                # print(f"sDimKey: {sDimKey}")
                 xRange: CPosRange = self._dicViewDimRangeUi.get(sDimKey)
                 if xRange is None:
                     iMin = None
@@ -1168,12 +1171,18 @@ class CVariantGroupProductView:
                     iMin = None
                     iMax = None
                     if dicViewDimRangeUi is not None:
+                        # print(f"dicViewDimRangeUi: {dicViewDimRangeUi}")
                         xRange = dicViewDimRangeUi.get(sDimKey)
                         if xRange is not None:
                             iMin = int(xRange.fValueMin) - 1
                             iMax = int(xRange.fValueMax) - 1
                         # endif
                     # endif
+
+                    # print(f"sArtTypeId: {sArtTypeId}")
+                    # print(f"sDimKey: {sDimKey}")
+                    # print(f"iMin: {iMin}")
+                    # print(f"iMax: {iMax}")
 
                     self._xProdView.AddViewDim(
                         _sDimKey=sDimKey, _iRangeMin=iMin, _iRangeMax=iMax, _sArtTypeId=sArtTypeId
@@ -1191,6 +1200,7 @@ class CVariantGroupProductView:
             self._lMaxColsPerBlock: list[int] = [iMaxColsPerRowTop] + [iMaxColsPerRow] * (iViewDimCnt - 1)
 
             # print("\nStart Update product view\n")
+            # print(f"iViewDimCnt: {iViewDimCnt}")
             # print(f"{self._lMaxColsPerBlock}")
 
             if xViewDimNode is None:
@@ -1212,6 +1222,56 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
+    def _AddLabelWithLineBreaks(
+        self,
+        _sLabel: str,
+        *,
+        _sStyle: str = "",
+        _sStyleItem: str = "",
+        _iMaxLineLen: int = 20,
+    ):
+        if len(_sLabel) > _iMaxLineLen:
+            sRepLabel: str = _sLabel.replace("-", "- ").replace("_", "_ ").replace("/", "/ ")
+            lParts: list[str] = sRepLabel.split(" ")
+            lLines: list[str] = []
+            sLine = ""
+            iLineLen = 0
+            for sPart in lParts:
+                iPartLen = len(sPart)
+                if iLineLen + iPartLen > _iMaxLineLen:
+                    if iLineLen == 0:
+                        lLines.append(sPart)
+                    else:
+                        lLines.append(sLine)
+                        sLine = sPart
+                        iLineLen = iPartLen
+                    # endif
+                else:
+                    if iLineLen > 0 and sLine[-1] in ("-", "_", "/"):
+                        sLine += sPart
+                    elif iLineLen == 0:
+                        sLine = sPart
+                    else:
+                        sLine += " " + sPart
+                    # endif
+                    iLineLen = len(sLine)
+                # endif
+            # endfor
+            if iLineLen > 0:
+                lLines.append(sLine)
+            # endif
+            sNewLabel = "<br>".join(lLines)
+            sStyle = f"{_sStyle};text-align: center;"
+            with ui.element("div").style(sStyle).style(_sStyleItem):
+                ui.html(sNewLabel)
+            # endwith
+        else:
+            ui.label(_sLabel).style(_sStyle).style(_sStyleItem)
+        # endif
+
+    # enddef
+
+    # ##########################################################################################################
     def _ShowViewDimRow(self, *, _xViewDimNode: CViewDimNode):
         iBlockColCnt = _xViewDimNode.iRange
 
@@ -1223,19 +1283,36 @@ class CVariantGroupProductView:
 
         sBgColor: str = self._lViewDimGridColors[(_xViewDimNode.iDimIdx // 2) % len(self._lViewDimGridColors)]
 
-        iMaxColsPerBlock = self._lMaxColsPerBlock[_xViewDimNode.iDimIdx]
+        if _xViewDimNode.sArtTypeId is not None:
+            iMaxColsPerBlock = self._lMaxColsPerBlock[-1]
+        else:
+            iMaxColsPerBlock = self._lMaxColsPerBlock[_xViewDimNode.iDimIdx]
+        # endif
         iGridBlockCnt: int = 1
         if iBlockColCnt > iMaxColsPerBlock:
             iGridBlockCnt = iBlockColCnt // iMaxColsPerBlock + (1 if (iBlockColCnt % iMaxColsPerBlock) > 0 else 0)
             iBlockColCnt = iMaxColsPerBlock
         # endif
 
+        # if _xViewDimNode.sArtTypeId is not None:
+        #     print(f"_xViewDimNode.sArtTypeId: {_xViewDimNode.sArtTypeId}")
+        #     print(f"_xViewDimNode.xViewDim.sDimLabel: {_xViewDimNode.xViewDim.sDimLabel}")
+        #     print(f"_xViewDimNode.xViewDim.iMin: {_xViewDimNode.xViewDim.iMin}")
+        #     print(f"_xViewDimNode.xViewDim.iMax: {_xViewDimNode.xViewDim.iMax}")
+        # # endif
+
+        # print(f"_xViewDimNode.sDimLabel: {_xViewDimNode.sDimLabel}")
+        # print(f"_xViewDimNode.iDimIdx: {_xViewDimNode.iDimIdx}")
+        # print(f"iMaxColsPerBlock: {iMaxColsPerBlock}")
+        # print(f"iBlockColCnt: {iBlockColCnt}")
+        # print(f"iGridBlockCnt: {iGridBlockCnt}")
+
         bShowRowLabel: bool = (iBlockColCnt > 1 or iRowCnt > 1) and xViewDimNodeCol is not None
-        sRowLabelItem: str = "auto" if bShowRowLabel else ""
+        sRowLabelItem: str = "min-content" if bShowRowLabel else ""
 
         sGridStyle: str = (
-            f"grid-template-rows: auto repeat({iRowCnt}, minmax(0, 1fr));"
-            f"grid-template-columns: {sRowLabelItem} repeat({iBlockColCnt}, minmax(0, 1fr));"
+            f"grid-template-rows: min-content repeat({iRowCnt}, minmax(min-content, auto));"
+            f"grid-template-columns: {sRowLabelItem} repeat({iBlockColCnt}, minmax(min-content, auto));"
             f"grid-auto-flow: column;"
             "grid-gap: 10px;"
             f"background-color: {sBgColor};"
@@ -1305,8 +1382,13 @@ class CVariantGroupProductView:
 
                         if lViewDimRowLabels is not None:
                             for sLabel in lViewDimRowLabels:
-                                sStyle = "writing-mode: vertical-lr" if len(sLabel) > 2 else ""
-                                ui.label(sLabel).style(sStyle).style(sStyleItem)
+                                sStyle = "writing-mode: vertical-rl" if len(sLabel) > 2 else ""
+                                self._AddLabelWithLineBreaks(
+                                    sLabel,
+                                    _sStyle=sStyle,
+                                    _sStyleItem=sStyleItem,
+                                    _iMaxLineLen=20,
+                                )
                             # endfor
                         # endif
                     # endif
@@ -1321,12 +1403,13 @@ class CVariantGroupProductView:
                             sLabel: str = lViewDimColLabels[iColIdx]
                             # print(f"[{iGridBlockIdx, iColIdx}]: {sLabel}")
 
-                            ui.label(sLabel).style(sStyleItem)
+                            # ui.label(sLabel).style(sStyleItem)
+                            self._AddLabelWithLineBreaks(sLabel, _sStyleItem=sStyleItem, _iMaxLineLen=30)
                             xViewDimNodeCol = _xViewDimNode.NextDim()
                             # if xViewDimNodeCol is not None:
-                            #     print(f"{sPre} In row [next]: {xViewDimNodeCol.sLabel}")
+                            #     print(f"In row [next]: {xViewDimNodeCol.sLabel}")
                             # else:
-                            #     print(f"{sPre} Show Artefact")
+                            #     print(f"Show Artefact")
                             # # endif
 
                             # Create row elements
@@ -1348,158 +1431,13 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _xxx_ShowViewDimRow(self, *, _xViewDimNode: CViewDimNode, _bRowMajor: bool = True):
-        iColCnt = 1
-
-        if _bRowMajor is True:
-            xViewDimNodeCol = _xViewDimNode.NextDim()
-            if xViewDimNodeCol is not None and not xViewDimNodeCol.bIsUniqueArtVarStartNode:
-                iColCnt = xViewDimNodeCol.iRange
-            # endif
-        else:
-            iColCnt = _xViewDimNode.iRange
-        # endif
-
-        # sPre = ">" * _xViewDimNode.iDimIdx
-        # if _xViewDimNode.sArtTypeId is not None:
-        #     sPre = f"{_xViewDimNode.sArtTypeId} -> " + sPre
-        # # endif
-
-        # if xViewDimNodeCol is not None:
-        #     print(f"{sPre} Start In row [next]: {xViewDimNodeCol.sLabel}")
-        # # endif
-
-        # if _xViewDimNode.bIsUniqueArtVarStartNode:
-        #     print(f"{sPre} Is unique art var start node")
-        #     # iColCnt = _xViewDimNode.iRange
-        # # endif
-
-        sBgColor: str = self._lViewDimGridColors[(_xViewDimNode.iDimIdx // 2) % len(self._lViewDimGridColors)]
-        sGridFlow: str = "row" if _bRowMajor is True else "column"
-
-        bTopRow: bool = _xViewDimNode.iDimIdx == 0 and _xViewDimNode.sArtTypeId is None
-        iGridBlockCnt: int = 1
-        iTopColsPerBlock: int = 4
-        if bTopRow is True and iColCnt > iTopColsPerBlock:
-            iGridBlockCnt = iColCnt // iTopColsPerBlock + 1 if (iColCnt % iTopColsPerBlock) > 0 else 0
-            iColCnt = iTopColsPerBlock
-        # endif
-
-        sStyle: str = (
-            f"grid-template-columns: auto repeat({iColCnt}, minmax(0, 1fr));"
-            f"grid-auto-flow: {sGridFlow};"
-            "grid-gap: 10px;"
-            f"background-color: {sBgColor};"
-            "padding: 10px;"
-            "justify-items: center;"
-            # "align-items: center;"
-            # "justify-items: center; align-items: center;"
-        )
-        sStyleItem: str = "padding: 3px;justify-self: center;align-self: center;"
-
-        lViewDimColLabels = list(xViewDimNodeCol.lLabels)
-        iViewDimColCnt = len(lViewDimColLabels)
-        _xViewDimNode.Reset()
-
-        with ui.column().classes("w-full"):
-            for iGridBlockIdx in range(iGridBlockCnt):
-                with ui.grid().classes("w-full").style(sStyle):
-                    # ## DEBUG
-                    # sValue = self._GetViewDimLabel(xViewDim)
-                    # print(f"ROW> xViewDim: {sValue}")
-                    # ##
-
-                    # Create Column header row
-                    if _bRowMajor is True:
-                        if xViewDimNodeCol is not None:
-                            xViewDimNodeCol.Reset()
-
-                            ui.label(" ").style(sStyleItem)
-                            if bTopRow is True:
-                                iStart = iGridBlockIdx * iColCnt
-                                for iIdx in range(iColCnt):
-                                    iPos = iIdx + iStart
-                                    if iPos < iViewDimColCnt:
-                                        sValue = lViewDimColLabels[iPos]
-                                    else:
-                                        sValue = " "
-                                    # endif
-                                    ui.label(sValue).style(sStyleItem)
-                                # endfor
-                            else:
-                                for sValue in lViewDimColLabels:
-                                    ui.label(sValue).style(sStyleItem)
-                                # endwhile
-                            # endif
-                        # endif
-                    else:
-                        _xViewDimNode.Reset()
-                        ui.label(" ").style(sStyleItem)
-                        if _xViewDimNode.iRange == 1:
-                            ui.label(" ").style(sStyleItem)
-                        else:
-                            for sLabel in _xViewDimNode.lLabels:
-                                sStyle = "writing-mode: vertical-lr" if len(sLabel) > 2 else ""
-                                ui.label(sLabel).style(sStyle).style(sStyleItem)
-                            # endfor
-                        # endif
-
-                    # endif
-
-                    while True:
-                        # Write row label
-                        if _bRowMajor is True:
-                            if _xViewDimNode.iRange > 1:
-                                sValue = _xViewDimNode.sLabel
-                                sStyle = "writing-mode: vertical-lr" if len(sValue) > 2 else ""
-                                ui.label(sValue).style(sStyle).style(sStyleItem)
-                            else:
-                                ui.label(" ").style(sStyleItem)
-                            # endif
-                        # endif
-
-                        # print(f"{sPre} In row:  {_xViewDimNode.xViewDim.iIdx}, {_xViewDimNode.sValue}")
-                        xViewDimNodeCol = _xViewDimNode.NextDim()
-                        # if xViewDimNodeCol is not None:
-                        #     print(f"{sPre} In row [next]: {xViewDimNodeCol.sLabel}")
-                        # else:
-                        #     print(f"{sPre} Show Artefact")
-                        # # endif
-
-                        # Create row elements
-                        if xViewDimNodeCol is None:
-                            self._ShowViewDimArt()
-                        elif xViewDimNodeCol.bIsUniqueArtVarStartNode is True:
-                            self._ShowViewDimRow(_xViewDimNode=xViewDimNodeCol, _bRowMajor=_bRowMajor)
-                        else:
-                            self._ShowViewDimCol(_xViewDimNode=xViewDimNodeCol, _bRowMajor=_bRowMajor)
-                        # endif
-
-                        if _xViewDimNode.Next() is False:
-                            break
-                        # endif
-                        if bTopRow is True and _xViewDimNode.xViewDim.iIdx % iTopColsPerBlock == 0:
-                            break
-                        # endif
-
-                    # endwhile
-                # endwith grid
-                if iGridBlockIdx < iGridBlockCnt - 1:
-                    ui.separator()
-                # endif
-            # endfor grid block
-        # endwith column
-
-    # enddef
-
-    # ##########################################################################################################
     def _ShowViewDimCol(self, *, _xViewDimNode: CViewDimNode):
         xViewDimNodeCol = _xViewDimNode.NextDim()
 
-        # sPre = ">" * _xViewDimNode.iDimIdx
-        # if _xViewDimNode.sArtTypeId is not None:
-        #     sPre = f"{_xViewDimNode.sArtTypeId} -> " + sPre
-        # # endif
+        sPre = ">" * _xViewDimNode.iDimIdx
+        if _xViewDimNode.sArtTypeId is not None:
+            sPre = f"{_xViewDimNode.sArtTypeId} -> " + sPre
+        # endif
 
         # if xViewDimNodeCol is not None:
         #     print(f"{sPre} Start In col [next]: {xViewDimNodeCol.sValue}")
