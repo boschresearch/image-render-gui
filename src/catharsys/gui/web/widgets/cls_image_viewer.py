@@ -27,6 +27,7 @@ from nicegui import ui, Tailwind, events
 from catharsys.gui.web.widgets.cls_message import CMessage, EMessageType
 import catharsys.plugins.std.util.imgproc as imgproc
 import numpy as np
+from typing import Callable, Optional, Any
 
 from .cls_ui_image import CUiImage
 
@@ -39,6 +40,18 @@ class CImageViewer:
     def __init__(self):
         self._iImgHeight: int = None
         self._iImgWidth: int = None
+        self._uiImage: CUiImage = None
+        self._bIsDrawn: bool = False
+        self._fScalePower: float = 1.0
+        self._uiLabelTitle: ui.label = None
+        self._pathImage: Path = None
+        self._sTitle: str = None
+
+    # enddef
+
+    @property
+    def bIsDrawn(self) -> bool:
+        return self._bIsDrawn
 
     # enddef
 
@@ -48,14 +61,62 @@ class CImageViewer:
     # enddef
 
     def ScaleImage(self, _uiImage: ui.image, _fScalePower: float):
-        fScale = math.exp(_fScalePower)
+        self._fScalePower = _fScalePower
+        fScale = math.exp(self._fScalePower)
         iW = fScale * self._iImgWidth
         iH = fScale * self._iImgHeight
         _uiImage.style(f"width: {iW}px; height: {iH}px;")
 
     # enddef
 
-    def GetImageDialog(self, _pathImage: Path):
+    def UpdateScale(self):
+        self.ScaleImage(self._uiImage, self._fScalePower)
+
+    # enddef
+
+    def UpdateImage(
+        self,
+        _pathImage: Path,
+        *,
+        _sTitle: Optional[str] = None,
+    ):
+        self._pathImage = _pathImage
+        if _sTitle is not None:
+            self._sTitle = _sTitle
+        # endif
+
+        if self._uiImage is not None:
+            if _pathImage.exists():
+                aImage: np.ndarray = cv2.imread(_pathImage.as_posix())
+                self._iImgHeight, self._iImgWidth = aImage.shape[0:2]
+
+            else:
+                raise RuntimeError(f"Image does not exist: {(_pathImage.as_posix())}")
+            # endif
+
+            if _sTitle is not None:
+                self._uiLabelTitle.set_text(_sTitle)
+            # endif
+            self._uiImage.UpdateImage(_pathImage)
+            self.UpdateScale()
+        # endif
+
+    # enddef
+
+    def DrawImage(
+        self,
+        _pathImage: Path,
+        *,
+        _sHeight: str = "80vh",
+        _bShowFullscreen: bool = True,
+        _sTitle: Optional[str] = "Image Viewer",
+        _funcOnClose: Optional[Callable[[None], None]] = None,
+    ):
+        self._pathImage = _pathImage
+        if _sTitle is not None:
+            self._sTitle = _sTitle
+        # endif
+
         if _pathImage.exists():
             aImage: np.ndarray = cv2.imread(_pathImage.as_posix())
             self._iImgHeight, self._iImgWidth = aImage.shape[0:2]
@@ -65,48 +126,81 @@ class CImageViewer:
             self._iImgHeight = None
         # endif
 
+        # with ui.card().tight():
+        with ui.grid().style(
+            "grid-template-columns: 1fr; "
+            "grid-template-rows: 30px auto 30px;"
+            f"width: 100%; height: {_sHeight};"
+            "justify-items: stretch;"
+            "background: white;"
+            "opacity: 1"
+        ):
+            with ui.element("q-bar"):
+                self._uiLabelTitle = ui.label(_sTitle)
+                self._uiLabelTitle.tailwind.text_color("black")
+                ui.element("q-space")
+                if _bShowFullscreen is True:
+                    ui.button(icon="fullscreen", on_click=self._OnFullscreen).props("dense flat")
+                # endif
+                ui.button(icon="close", on_click=_funcOnClose).props("dense flat")
+            # endwith
+
+            self._uiScrollArea = ui.scroll_area()
+            self._uiScrollArea.style(
+                "height: 100%; width: 100%;"
+                # "padding: 5px;"
+                "background-color: #8f8f8f;"
+                # "opacity: 0.8;"
+                "background-image:  repeating-linear-gradient(45deg, #a4a4a4 25%, transparent 25%, transparent 75%, #a4a4a4 75%, #a4a4a4), repeating-linear-gradient(45deg, #a4a4a4 25%, #8f8f8f 25%, #8f8f8f 75%, #a4a4a4 75%, #a4a4a4);"
+                "background-position: 0 0, 10px 10px;"
+                "background-size: 20px 20px;"
+            )
+            with self._uiScrollArea:
+                if not _pathImage.exists():
+                    # with ui.column():
+                    ui.icon("report_problem", size="xl")
+                    ui.label(f"Image path not found: {(_pathImage.as_posix())}")
+                    # endwith
+                else:
+                    if _pathImage.suffix not in [".png", ".jpg", ".jpeg"]:
+                        # with ui.column():
+                        ui.icon("report_problem", size="xl")
+                        ui.label(f"Image file type '{_pathImage.suffix}' not supported")
+                        # endwith
+                    else:
+                        self._uiImage = CUiImage(_pathImage).props('fit=cover position="0px 0px"')
+                        # uiImg = ui.image(_pathImage).props(
+                        #     'fit=cover position="0px 0px"'
+                        # )  # .style("position: 50px 100px;")  # .style("max-width: 100%;")
+
+                    # endif
+                # endif
+            # endwith
+            ui.slider(
+                min=-2.0,
+                max=2.0,
+                step=0.01,
+                value=0.0,
+                on_change=lambda xArgs: self._OnScaleImage(self._uiImage, xArgs),
+            ).style("")
+            # endwith
+        # endwith card
+        self._bIsDrawn = True
+        self.UpdateScale()
+
+    # enddef
+
+    def GetImageDialog(self, _pathImage: Path, _sTitle: str):
         # print(_pathImage)
         dlgImg = ui.dialog().props("maximized persistent")  # .style("width: 800px; max-width: 1200px;")
         with dlgImg:
-            # with ui.card().tight():
-            with ui.grid().style(
-                "grid-template-columns: 1fr; "
-                "grid-template-rows: auto 1fr auto;"
-                "width: 100%; height: 100%;"
-                "justify-items: stretch;"
-                "background: white;"
-            ):
-                with ui.element("q-bar"):
-                    ui.label("Image Viewer").tailwind.text_color("black")
-                    ui.element("q-space")
-                    ui.button(icon="close", on_click=lambda: dlgImg.close()).props("dense flat")
-                # endwith
-                with ui.scroll_area().style("height: 100%; width: 100%; padding: 5px;"):
-                    if not _pathImage.exists():
-                        # with ui.column():
-                        ui.icon("report_problem", size="xl")
-                        ui.label(f"Image path not found: {(_pathImage.as_posix())}")
-                        # endwith
-                    else:
-                        if _pathImage.suffix not in [".png", ".jpg", ".jpeg"]:
-                            # with ui.column():
-                            ui.icon("report_problem", size="xl")
-                            ui.label(f"Image file type '{_pathImage.suffix}' not supported")
-                            # endwith
-                        else:
-                            uiImg = CUiImage(_pathImage).props('fit=cover position="0px 0px"')
-                            # uiImg = ui.image(_pathImage).props(
-                            #     'fit=cover position="0px 0px"'
-                            # )  # .style("position: 50px 100px;")  # .style("max-width: 100%;")
-
-                        # endif
-                    # endif
-                # endwith
-                ui.slider(
-                    min=-2.0, max=2.0, step=0.01, value=0.0, on_change=lambda xArgs: self._OnScaleImage(uiImg, xArgs)
-                ).style("padding: 5px")
-                # endwith
-            # endwith card
+            self.DrawImage(
+                _pathImage,
+                _sTitle=_sTitle,
+                _sHeight="100vh",
+                _bShowFullscreen=False,
+                _funcOnClose=lambda: dlgImg.close(),
+            )
         # endwith dialog
 
         return dlgImg
@@ -118,8 +212,15 @@ class CImageViewer:
 
     # enddef
 
-    async def AsyncShowImage(self, _pathImage: Path):
-        await self.GetImageDialog(_pathImage)
+    async def AsyncShowImage(self, _pathImage: Path, _sTitle: str):
+        await self.GetImageDialog(_pathImage, _sTitle)
+
+    # enddef
+
+    async def _OnFullscreen(self):
+        xImgViewer = CImageViewer()
+        await xImgViewer.AsyncShowImage(self._pathImage, self._sTitle)
+        del xImgViewer
 
     # enddef
 

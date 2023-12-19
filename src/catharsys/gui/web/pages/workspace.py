@@ -88,6 +88,9 @@ class CPageWorkspace:
         self.gridGlobalLaunchArgs: ui.grid = None
         self.gridActionLaunchArgs: ui.grid = None
 
+        self._uiLayoutHeader: ui.header = None
+        self._uiLayoutRight: ui.right_drawer = None
+
         self.vgGlobLaunchArgs: CValueGrid = None
         self.vgActLaunchArgs: CValueGrid = None
         self.dicLaunchGuiArgs: dict = None
@@ -164,8 +167,11 @@ class CPageWorkspace:
 
             xPageWs = CPageWorkspace.dicClients.get(client.id)
             if xPageWs is None:
+                uiHeader = ui.header(elevated=False)
+                # uiDrawerLeft = ui.left_drawer(value=False, fixed=False)
+                uiDrawerRight = ui.right_drawer(value=False, fixed=False)
                 xPageWs = CPageWorkspace(_wsX, client)
-                xPageWs.Create()
+                xPageWs.Create(_uiLayoutHeader=uiHeader, _uiLayoutRight=uiDrawerRight)
             # endif
 
         # enddef
@@ -344,7 +350,10 @@ class CPageWorkspace:
 
     # #############################################################################################
     @ui.refreshable
-    def Create(self):
+    def Create(self, *, _uiLayoutHeader: ui.header, _uiLayoutRight: ui.right_drawer):
+        self._uiLayoutHeader: ui.header = _uiLayoutHeader
+        self._uiLayoutRight: ui.right_drawer = _uiLayoutRight
+
         self._darkMode = ui.dark_mode()
         self._darkMode.enable()
 
@@ -356,7 +365,18 @@ class CPageWorkspace:
 
         # ui.label(f"User: {sUsername} - Client ID: {self.xClientId}").classes("text-xs")
 
-        with ui.header(elevated=True):
+        ui.add_head_html(
+            """
+            <style>
+                :root {
+                    --nicegui-default-padding: 0.5rem;
+                    --nicegui-default-gap: 0.5rem;
+                }
+            </style>
+        """
+        )
+
+        with self._uiLayoutHeader:
             with ui.element("q-toolbar"):
                 with ui.button(icon="menu", color="slate-400").props("flat round dense").classes("q-mr-sm"):
                     self._menuMain = ui.menu()
@@ -397,6 +417,8 @@ class CPageWorkspace:
             # """
             # ).classes(self.sStyleTextDescSmall + " mr-auto")
         # endwith
+
+        self._uiLayoutRight.hide()
 
         # with ui.left_drawer(top_corner=False, bottom_corner=False):
         # # endwith left drawer
@@ -1710,6 +1732,7 @@ class CPageWorkspace:
                     uiRowView = ui.row().classes("w-full")
                     self.dicProjectProductViewer[sPrjId] = CVariantGroupProductView(
                         _uiRow=uiRowView,
+                        _uiDrawerImage=self._uiLayoutRight,
                         _xVariantGroup=self.xVariantGroup,
                         _funcOnClose=lambda: self.CloseProductView(sPvtId),
                     )

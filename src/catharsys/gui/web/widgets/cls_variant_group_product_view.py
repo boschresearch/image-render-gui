@@ -60,9 +60,11 @@ class CVariantGroupProductView:
         *,
         _uiRow: ui.row,
         _xVariantGroup: CVariantGroup,
+        _uiDrawerImage: Optional[ui.drawer] = None,
         _funcOnClose: Optional[Callable[[None], None]] = None,
     ):
         self._uiRowMain: ui.row = _uiRow
+        self._uiDrawerImage: ui.drawer = _uiDrawerImage
         self._xVariantGroup: CVariantGroup = _xVariantGroup
         self._xProdView = CProductView(CVariantGroupProducts(_xVariantGroup=_xVariantGroup))
 
@@ -71,6 +73,7 @@ class CVariantGroupProductView:
         self._xMessage = CMessage()
         self._xMessage.uiMain = self._uiRowMain
         self._xImageViewer = CImageViewer()
+        self._xImageViewerDialog = CImageViewer()
         self._bIsValid: bool = False
 
         self._iBlockOnChangeSelectGroup: int = 0
@@ -174,6 +177,10 @@ class CVariantGroupProductView:
     # ##########################################################################################################
     def Create(self):
         try:
+            if self._uiDrawerImage is not None:
+                self._uiDrawerImage.clear()
+            # endif
+
             pathProd: Path = self._xVariantGroup.xProject.xConfig.pathLaunch / "production.json5"
             if not pathProd.exists():
                 self._uiRowMain.clear()
@@ -201,84 +208,108 @@ class CVariantGroupProductView:
                 try:
                     self._uiRowMain.clear()
                     with self._uiRowMain:
-                        with ui.element("q-list").props("padding").classes("w-full"):
-                            # with ui.column().classes("w-full"):
-                            # ui.label(f"Production View")
-                            with ui.row().classes("w-full").style("padding-bottom: 0.5em"):
-                                lGroups = self._xProdView.lGroups
-                                self._uiSelGrp = self._CreateSelectUi(
-                                    _lOptions=self._xProdView.dicGroupKeyNames,
-                                    _sLabel="View Group",
-                                    _xValue=lGroups[0],
-                                    _funcOnChange=self._OnChangeSelectGroup,
-                                )
-                                Tailwind().min_width("100px").apply(self._uiSelGrp)
-                                if self._xProdView.iGroupCount == 1:
-                                    self._uiSelGrp.set_visibility(False)
-                                # endif
-                                self._uiButScan = ui.button(
-                                    "Scan Filesystem", on_click=lambda: self.ScanArtefacts(_bForceRescan=True)
-                                )
-                                self._uiLabelScan = ui.label("")
-                                self._uiSpinScan = ui.spinner("dots", size="xl", color="primary")
-                                self._uiSpinScan.set_visibility(False)
+                        self._uiSplitter = ui.splitter().classes("w-full")
+                        with self._uiSplitter.before:
+                            self._uiElMain = ui.scroll_area().style("width: 100%; height: 80vh;").classes("q-pr-md")
+                            # self._uiElMain = ui.element("q-list").props("padding").classes("w-full")
+                            with self._uiElMain:
+                                with ui.element("q-list").props("padding").classes("w-full"):
+                                    # with ui.column().classes("w-full"):
+                                    # ui.label(f"Production View")
+                                    with ui.row().classes("w-full").style("padding-bottom: 0.5em"):
+                                        lGroups = self._xProdView.lGroups
+                                        self._uiSelGrp = self._CreateSelectUi(
+                                            _lOptions=self._xProdView.dicGroupKeyNames,
+                                            _sLabel="View Group",
+                                            _xValue=lGroups[0],
+                                            _funcOnChange=self._OnChangeSelectGroup,
+                                        )
+                                        Tailwind().min_width("100px").apply(self._uiSelGrp)
+                                        if self._xProdView.iGroupCount == 1:
+                                            self._uiSelGrp.set_visibility(False)
+                                        # endif
+                                        self._uiButScan = ui.button(
+                                            "Scan Filesystem", on_click=lambda: self.ScanArtefacts(_bForceRescan=True)
+                                        )
+                                        self._uiLabelScan = ui.label("")
+                                        self._uiSpinScan = ui.spinner("dots", size="xl", color="primary")
+                                        self._uiSpinScan.set_visibility(False)
 
-                                # Close Button if handler is available
-                                if self._funcOnClose is not None:
-                                    self._butClose = ui.button(icon="close", on_click=lambda: self.OnClose()).classes(
-                                        "ml-auto"
-                                    )
-                                else:
-                                    self._butClose = None
-                                # endif
-                            # endwith
+                                        # Close Button if handler is available
+                                        if self._funcOnClose is not None:
+                                            self._butClose = ui.button(
+                                                icon="close", on_click=lambda: self.OnClose()
+                                            ).classes("ml-auto")
+                                        else:
+                                            self._butClose = None
+                                        # endif
+                                    # endwith
 
-                            with ui.expansion("Product Selection", icon="description").props(
-                                "switch-toggle-side default-opened expand-separator"
-                            ).classes("w-full"):
-                                self._uiRowGroup = ui.row().classes("w-full").style("padding-bottom: 0.5em")
-                                with self._uiRowGroup:
-                                    ui.label("Scanning for artefacts...")
-                                # endwith
-                                self._uiRowArtSel = ui.row().classes("w-full").style("padding-bottom: 0.5em")
-                            # endwith expansion
+                                    with ui.expansion("Product Selection", icon="description").props(
+                                        "switch-toggle-side default-opened expand-separator"
+                                    ).classes("w-full"):
+                                        self._uiRowGroup = ui.row().classes("w-full").style("padding-bottom: 0.5em")
+                                        with self._uiRowGroup:
+                                            ui.label("Scanning for artefacts...")
+                                        # endwith
+                                        self._uiRowArtSel = ui.row().classes("w-full").style("padding-bottom: 0.5em")
+                                    # endwith expansion
 
-                            # ui.separator()
+                                    # ui.separator()
 
-                            with ui.expansion("View Settings", icon="description").props(
-                                "switch-toggle-side default-opened expand-separator"
-                            ).classes("w-full"):
-                                self._uiRowViewDim = (
-                                    ui.row().classes("w-full").style("padding-bottom: 0.5em;padding-top: 0.5em")
-                                )
+                                    with ui.expansion("View Settings", icon="description").props(
+                                        "switch-toggle-side default-opened expand-separator"
+                                    ).classes("w-full"):
+                                        self._uiRowViewDim = (
+                                            ui.row().classes("w-full").style("padding-bottom: 0.5em;padding-top: 0.5em")
+                                        )
 
-                            # endwith expansion
+                                    # endwith expansion
 
-                            # ui.separator()
+                                    # ui.separator()
 
-                            with ui.row().classes("w-full").style("padding-top: 0.5em; padding-bottom: 0.5em"):
-                                self._uiButUpdateView = ui.button("Update View", on_click=self._OnUpdateProductView)
-                                self._CreateSelectUi(
-                                    _lOptions=["32", "64", "128", "256", "512"],
-                                    _xValue=str(self._xThumbnails.iTargetWidth),
-                                    _sLabel="Image Preview Size",
-                                    _funcOnChange=self._OnChangeImagePreviewSize,
-                                )
-                                self._uiSelMaxColsPerRowTop = self._CreateSelectUi(
-                                    _lOptions=[str(x) for x in range(2, 21)],
-                                    _xValue="10",
-                                    _sLabel="Max columns in top row",
-                                )
-                                self._uiSelMaxColsPerRow = self._CreateSelectUi(
-                                    _lOptions=[str(x) for x in range(2, 21)],
-                                    _xValue="10",
-                                    _sLabel="Max columns per row",
-                                )
-                            # endwith
-                            self._uiRowViewArt = ui.row().classes("w-full")
+                                    with ui.row().classes("w-full").style("padding-top: 0.5em; padding-bottom: 0.5em"):
+                                        self._uiButUpdateView = ui.button(
+                                            "Update View", on_click=self._OnUpdateProductView
+                                        )
+                                        self._CreateSelectUi(
+                                            _lOptions=["32", "64", "128", "256", "512"],
+                                            _xValue=str(self._xThumbnails.iTargetWidth),
+                                            _sLabel="Image Preview Size",
+                                            _funcOnChange=self._OnChangeImagePreviewSize,
+                                        )
+                                        self._uiSelMaxColsPerRowTop = self._CreateSelectUi(
+                                            _lOptions=[str(x) for x in range(1, 21)],
+                                            _xValue="10",
+                                            _sLabel="Max columns in top row",
+                                        )
+                                        self._uiSelMaxColsPerRow = self._CreateSelectUi(
+                                            _lOptions=[str(x) for x in range(1, 21)],
+                                            _xValue="10",
+                                            _sLabel="Max columns per row",
+                                        )
+                                    # endwith
+                                    # self._uiGridViewArt = ui.grid().style(
+                                    #     "grid-template-columns: 100% 0px; "
+                                    #     "grid-template-rows: 1fr;"
+                                    #     "width: 100%; height: 100%;"
+                                    #     "justify-items: stretch;"
+                                    # # self._uiGridViewArt = ui.row().classes("w-full")
+                                    # with self._uiGridViewArt:
+                                    #     with ui.scroll_area().style("width: 100vw; height: 100vh; padding: 5px;"):
+                                    self._uiRowViewArt = ui.row().classes("w-full")
+                                    #     endwith
+                                    #     self._uiRowViewImg = ui.row().classes("w-full").style("width: 0px; height: 0px;")
+                                    # endwith
+                                # endwith q-list
+                            # endwith column
+                        # endwith
 
-                        # endwith column
-                    # endwith
+                        with self._uiSplitter.after:
+                            self._uiDivImage = ui.element("div").classes("w-full h-full q-pl-sm")
+                        # endwith
+                        self._uiSplitter.set_value(100)
+                    # endwith main row
                     ui.timer(0.1, self.ScanArtefacts, once=True)
                     self._bIsValid = True
                 finally:
@@ -1490,6 +1521,7 @@ class CVariantGroupProductView:
         else:
             pathThumb: Path = None
             pathArt: Path = ndArt.pathFS
+            lPathNames: list[str] = ndArt.lPathNames.copy()
             sTooltip: str = None
             sBelow: str = None
 
@@ -1541,6 +1573,7 @@ class CVariantGroupProductView:
             if pathArt.suffix in [".png", ".jpg", ".exr"]:
                 pathThumb = self._xThumbnails.ProvideThumbnailPath(pathArt)
                 with ui.image(pathThumb).style("padding: 3px;") as uiImage:
+                    uiImage.on("click", functools.partial(self._OnShowImageViewer, pathArt, lPathNames, False))
                     uiImage.props("fit=contain").style(self._sThumbImageStyle)
                     if sTooltip is not None:
                         with ui.element("q-tooltip"):
@@ -1555,8 +1588,8 @@ class CVariantGroupProductView:
                             auto_close=False,
                         )
                         ui.menu_item(
-                            "Image Viewer",
-                            on_click=functools.partial(self._OnShowImageViewer, pathArt),
+                            "Image Viewer (maximized)",
+                            on_click=functools.partial(self._OnShowImageViewer, pathArt, lPathNames, True),
                             auto_close=False,
                         )
                         ui.menu_item(
@@ -1597,9 +1630,39 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    async def _OnShowImageViewer(self, _pathImage: Path, _xArgs: events.ClickEventArguments):
+    def _DoShowImageViewer(self, _pathImage: Path, _sTitle: str):
+        if self._uiSplitter.value >= 100:
+            self._uiSplitter.set_value(50)
+        # endif
+
+        if self._xImageViewer.bIsDrawn:
+            self._xImageViewer.UpdateImage(_pathImage, _sTitle=_sTitle)
+        else:
+            self._uiDivImage.clear()
+            with self._uiDivImage:
+                self._xImageViewer.DrawImage(_pathImage, _sTitle=_sTitle, _funcOnClose=self._DoHideImageViewer)
+            # endif
+        # endwith
+
+    # enddef
+
+    # ##########################################################################################################
+    def _DoHideImageViewer(self):
+        self._uiSplitter.set_value(100)
+
+    # enddef
+
+    # ##########################################################################################################
+    async def _OnShowImageViewer(
+        self, _pathImage: Path, _lPathName: list[str], _bMaximized: bool, _xArgs: events.ClickEventArguments
+    ):
         try:
-            await self._xImageViewer.AsyncShowImage(_pathImage)
+            sTitle = "/ ".join(_lPathName[1:])
+            if _bMaximized is True:
+                await self._xImageViewerDialog.AsyncShowImage(_pathImage, sTitle)
+            else:
+                self._DoShowImageViewer(_pathImage, sTitle)
+            # endif
 
         except Exception as xEx:
             self._xMessage.ShowException("Error in image viewer", xEx)
