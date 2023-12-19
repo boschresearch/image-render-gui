@@ -39,7 +39,11 @@ except Exception:
 class CUiImage(Element, component="image.js"):
     def __init__(self, _pathImage: Path):
         super().__init__()
+        self.UpdateImage(_pathImage)
 
+    # enddef
+
+    def UpdateImage(self, _pathImage):
         if not _pathImage.exists():
             raise RuntimeError(f"Image file does not exist: {_pathImage}")
         # endif
@@ -49,6 +53,7 @@ class CUiImage(Element, component="image.js"):
 
         self.source = ngcore.app.add_static_file(local_file=_pathImage, url_path=sUrl)
         self._props["src"] = self.source
+        self.update()
 
     # enddef
 
