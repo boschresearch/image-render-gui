@@ -40,6 +40,7 @@ from catharsys.api.products.cls_path_structure import CPathStructure
 from catharsys.api.products.cls_group import CArtefactType
 from catharsys.api.products.cls_view_dim import EViewDimType
 from catharsys.api.products.cls_product_view import CProductView, CViewDimNode
+from catharsys.api.products.cls_category import ECategoryType, CCategory, CCategoryTypeBool
 
 from .cls_pos_range import CPosRange, EPosRangeStyle
 from ..util.cls_thumbnails import CThumbnails
@@ -1253,18 +1254,11 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _AddLabelWithLineBreaks(
-        self,
-        _sLabel: str,
-        *,
-        _sStyle: str = "",
-        _sStyleItem: str = "",
-        _iMaxLineLen: int = 20,
-    ):
+    def _SplitLabelIntoLines(self, _sLabel: str, _iMaxLineLen: int = 20) -> list[str]:
+        lLines: list[str] = []
         if len(_sLabel) > _iMaxLineLen:
             sRepLabel: str = _sLabel.replace("-", "- ").replace("_", "_ ").replace("/", "/ ")
             lParts: list[str] = sRepLabel.split(" ")
-            lLines: list[str] = []
             sLine = ""
             iLineLen = 0
             for sPart in lParts:
@@ -1291,6 +1285,24 @@ class CVariantGroupProductView:
             if iLineLen > 0:
                 lLines.append(sLine)
             # endif
+        else:
+            lLines.append(_sLabel)
+        # endif
+        return lLines
+
+    # enddef
+
+    # ##########################################################################################################
+    def _AddLabelWithLineBreaks(
+        self,
+        _sLabel: str,
+        *,
+        _sStyle: str = "",
+        _sStyleItem: str = "",
+        _iMaxLineLen: int = 20,
+    ):
+        lLines = self._SplitLabelIntoLines(_sLabel, _iMaxLineLen)
+        if len(lLines) > 1:
             sNewLabel = "<br>".join(lLines)
             sStyle = f"{_sStyle};text-align: center;"
             with ui.element("div").style(sStyle).style(_sStyleItem):
@@ -1299,6 +1311,75 @@ class CVariantGroupProductView:
         else:
             ui.label(_sLabel).style(_sStyle).style(_sStyleItem)
         # endif
+
+    # enddef
+
+    # ##########################################################################################################
+    def _CreateHandler_OnCheckCategory(self, _sVarId: str, _sVarValue: str, _sCatId: str):
+        def Handler(_xArgs: events.ValueChangeEventArguments):
+            self._xProdView.SetVarCategoryValue(
+                _sVarId=_sVarId, _sVarValue=_sVarValue, _sCatId=_sCatId, _xCatValue=bool(_xArgs.value)
+            )
+
+        # enddef
+
+        return Handler
+
+    # enddef
+
+    # ##########################################################################################################
+    def _AddLabelWithCategories(
+        self,
+        _sLabel: str,
+        *,
+        _sVarId: str,
+        _sVarValue: str,
+        _dicCategories: dict[str, Any],
+        _sStyle: str = "",
+        _sStyleItem: str = "",
+        _iMaxLineLen: int = 20,
+    ):
+        lLines = self._SplitLabelIntoLines(_sLabel, _iMaxLineLen)
+        sNewLabel = "<br>".join(lLines)
+        iCatCnt: int = len(_dicCategories)
+        bHasCats: bool = iCatCnt > 0
+        if bHasCats is True:
+            uiEl = ui.grid().style(f"grid-template-columns: auto repeat({iCatCnt}, auto); grid-template-rows: 1fr;")
+            sLabelStyle = "align-self: center;"
+        else:
+            sStyle = f"{_sStyle};text-align: center;width: 100%;"
+            sLabelStyle = ""
+            uiEl = ui.element("div").style(sStyle).style(_sStyleItem)
+        # endif
+
+        with uiEl:
+            ui.html(sNewLabel).style(sLabelStyle)
+            if bHasCats:
+                for sCatId, xCatValue in _dicCategories.items():
+                    xCatDef: CCategory = self._xProdView.GetVarCategoryDefinition(sCatId)
+                    if xCatDef.eType == ECategoryType.BOOL:
+                        xCatBool: CCategoryTypeBool = xCatDef
+                        uiCheck = ui.checkbox(
+                            "",
+                            value=xCatValue,
+                            on_change=self._CreateHandler_OnCheckCategory(_sVarId, _sVarValue, sCatId),
+                        )
+                        if len(xCatBool.sIconColor) > 0:
+                            uiCheck.props(f"color={xCatBool.sIconColor}")
+                        # endif
+
+                        if len(xCatBool.sIconTrue) > 0 and len(xCatBool.sIconFalse) > 0:
+                            uiCheck.props(f"checked-icon={xCatBool.sIconTrue} unchecked-icon={xCatBool.sIconFalse}")
+                        # endif
+                        with uiCheck:
+                            ui.tooltip(xCatDef.sName)
+                        # endwith
+                    else:
+                        ui.label(sCatId)
+                    # endif
+                # endfor
+            # endif
+        # endwith
 
     # enddef
 
@@ -1383,17 +1464,25 @@ class CVariantGroupProductView:
         lViewDimColLabels: list[str] = list(_xViewDimNode.lLabels)
         iViewDimColLabelCnt = len(lViewDimColLabels)
 
-        # print("---")
-        # print(f"iDimIdx: {_xViewDimNode.iDimIdx}")
-        # print(f"iRowCnt: {iRowCnt}")
-        # print(f"iMaxColsPerBlock: {iMaxColsPerBlock}")
-        # print(f"iGridBlockCnt: {iGridBlockCnt}")
-        # print(f"iBlockColCnt: {iBlockColCnt}")
-        # print(f"bShowGridBlockTitle: {bShowGridBlockTitle}")
-        # if lViewDimRowLabels is not None:
-        #     print(f"lViewDimRowLabels: {lViewDimRowLabels}")
-        # # endif
-        # print(f"lViewDimColLabels: {lViewDimColLabels}")
+        sViewDimColVarId: str = _xViewDimNode.sVarId
+        lViewDimColCats: list[dict[str, Any]] = list(_xViewDimNode.lCategories)
+        lViewDimColValues: list[str] = list(_xViewDimNode.lValues)
+
+        print("==================================================================")
+        print(f"iDimIdx: {_xViewDimNode.iDimIdx}")
+        print(f"iRowCnt: {iRowCnt}")
+        print(f"iMaxColsPerBlock: {iMaxColsPerBlock}")
+        print(f"iGridBlockCnt: {iGridBlockCnt}")
+        print(f"iBlockColCnt: {iBlockColCnt}")
+        print(f"bShowGridBlockTitle: {bShowGridBlockTitle}")
+        if lViewDimRowLabels is not None:
+            print(f"lViewDimRowLabels: {lViewDimRowLabels}")
+        # endif
+        print(f"sViewDimColVarId: {sViewDimColVarId}")
+        print(f"lViewDimColLabels: {lViewDimColLabels}")
+        print(f"lViewDimColValues: {lViewDimColValues}")
+        print(f"lViewDimColCats: {lViewDimColCats}")
+        print("==================================================================")
 
         _xViewDimNode.Reset()
 
@@ -1435,7 +1524,15 @@ class CVariantGroupProductView:
                             # print(f"[{iGridBlockIdx, iColIdx}]: {sLabel}")
 
                             # ui.label(sLabel).style(sStyleItem)
-                            self._AddLabelWithLineBreaks(sLabel, _sStyleItem=sStyleItem, _iMaxLineLen=30)
+                            # self._AddLabelWithLineBreaks(sLabel, _sStyleItem=sStyleItem, _iMaxLineLen=30)
+                            self._AddLabelWithCategories(
+                                sLabel,
+                                _sVarId=sViewDimColVarId,
+                                _sVarValue=lViewDimColValues[iColIdx],
+                                _dicCategories=lViewDimColCats[iColIdx],
+                                _sStyleItem=sStyleItem,
+                                _iMaxLineLen=30,
+                            )
                             xViewDimNodeCol = _xViewDimNode.NextDim()
                             # if xViewDimNodeCol is not None:
                             #     print(f"In row [next]: {xViewDimNodeCol.sLabel}")
@@ -1474,7 +1571,7 @@ class CVariantGroupProductView:
         #     print(f"{sPre} Start In col [next]: {xViewDimNodeCol.sValue}")
         # # endif
 
-        sStyleItem: str = "padding: 3px;justify-self: center;align-self: center;"
+        # sStyleItem: str = "padding: 3px;justify-self: center;align-self: center;"
         # sValue = self._GetViewDimLabel(xViewDim)
 
         while True:
