@@ -28,7 +28,7 @@ import concurrent
 from datetime import datetime
 from pathlib import Path
 from nicegui import ui, Tailwind, events
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Union, Any
 
 import ison
 from anybase import config
@@ -1630,17 +1630,17 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _DoShowImageViewer(self, _pathImage: Path, _sTitle: str):
+    def _DoShowImageViewer(self, _pathImage: Path, _xTitle: Union[str, list[str], None]):
         if self._uiSplitter.value >= 100:
             self._uiSplitter.set_value(50)
         # endif
 
         if self._xImageViewer.bIsDrawn:
-            self._xImageViewer.UpdateImage(_pathImage, _sTitle=_sTitle)
+            self._xImageViewer.UpdateImage(_pathImage, _xTitle=_xTitle)
         else:
             self._uiDivImage.clear()
             with self._uiDivImage:
-                self._xImageViewer.DrawImage(_pathImage, _sTitle=_sTitle, _funcOnClose=self._DoHideImageViewer)
+                self._xImageViewer.DrawImage(_pathImage, _xTitle=_xTitle, _funcOnClose=self._DoHideImageViewer)
             # endif
         # endwith
 
@@ -1657,11 +1657,10 @@ class CVariantGroupProductView:
         self, _pathImage: Path, _lPathName: list[str], _bMaximized: bool, _xArgs: events.ClickEventArguments
     ):
         try:
-            sTitle = "/ ".join(_lPathName[1:])
             if _bMaximized is True:
-                await self._xImageViewerDialog.AsyncShowImage(_pathImage, sTitle)
+                await self._xImageViewerDialog.AsyncShowImage(_pathImage, _lPathName)
             else:
-                self._DoShowImageViewer(_pathImage, sTitle)
+                self._DoShowImageViewer(_pathImage, _lPathName)
             # endif
 
         except Exception as xEx:

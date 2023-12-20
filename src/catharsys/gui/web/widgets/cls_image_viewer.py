@@ -27,7 +27,7 @@ from nicegui import ui, Tailwind, events
 from catharsys.gui.web.widgets.cls_message import CMessage, EMessageType
 import catharsys.plugins.std.util.imgproc as imgproc
 import numpy as np
-from typing import Callable, Optional, Any
+from typing import Callable, Optional, Union, Any
 
 from .cls_ui_image import CUiImage
 
@@ -42,10 +42,10 @@ class CImageViewer:
         self._iImgWidth: int = None
         self._uiImage: CUiImage = None
         self._bIsDrawn: bool = False
-        self._fScalePower: float = 1.0
-        self._uiLabelTitle: ui.label = None
+        self._fScalePower: float = 0.0
+        self._uiDivTitle: ui.element = None
         self._pathImage: Path = None
-        self._sTitle: str = None
+        self._xTitle: str = None
 
     # enddef
 
@@ -55,11 +55,13 @@ class CImageViewer:
 
     # enddef
 
+    # ##########################################################################################################
     def _OnScaleImage(self, _uiImage: ui.image, _xArgs: events.ValueChangeEventArguments):
         self.ScaleImage(_uiImage, float(_xArgs.value))
 
     # enddef
 
+    # ##########################################################################################################
     def ScaleImage(self, _uiImage: ui.image, _fScalePower: float):
         self._fScalePower = _fScalePower
         fScale = math.exp(self._fScalePower)
@@ -69,21 +71,20 @@ class CImageViewer:
 
     # enddef
 
+    # ##########################################################################################################
     def UpdateScale(self):
         self.ScaleImage(self._uiImage, self._fScalePower)
 
     # enddef
 
+    # ##########################################################################################################
     def UpdateImage(
         self,
         _pathImage: Path,
         *,
-        _sTitle: Optional[str] = None,
+        _xTitle: Optional[Union[str, list[str]]] = None,
     ):
         self._pathImage = _pathImage
-        if _sTitle is not None:
-            self._sTitle = _sTitle
-        # endif
 
         if self._uiImage is not None:
             if _pathImage.exists():
@@ -94,28 +95,45 @@ class CImageViewer:
                 raise RuntimeError(f"Image does not exist: {(_pathImage.as_posix())}")
             # endif
 
-            if _sTitle is not None:
-                self._uiLabelTitle.set_text(_sTitle)
-            # endif
+            self.UpdateTitle(_xTitle)
             self._uiImage.UpdateImage(_pathImage)
             self.UpdateScale()
         # endif
 
     # enddef
 
+    # ##########################################################################################################
+    def UpdateTitle(self, _xTitle: Union[str, list[str], None]):
+        if _xTitle is not None:
+            self._xTitle = _xTitle
+        else:
+            self._xTitle = "Image Viewer"
+        # endif
+
+        self._uiDivTitle.clear()
+        with self._uiDivTitle.classes("q-pa-md q-gutter-sm"):
+            if isinstance(_xTitle, list):
+                for sName in _xTitle:
+                    ui.badge(str(sName), color="secondary")
+                # endfor
+            else:
+                ui.badge(str(_xTitle))
+            # endif
+        # endwith
+
+    # enddef
+
+    # ##########################################################################################################
     def DrawImage(
         self,
         _pathImage: Path,
         *,
         _sHeight: str = "80vh",
         _bShowFullscreen: bool = True,
-        _sTitle: Optional[str] = "Image Viewer",
+        _xTitle: Optional[Union[str, list[str]]] = None,
         _funcOnClose: Optional[Callable[[None], None]] = None,
     ):
         self._pathImage = _pathImage
-        if _sTitle is not None:
-            self._sTitle = _sTitle
-        # endif
 
         if _pathImage.exists():
             aImage: np.ndarray = cv2.imread(_pathImage.as_posix())
@@ -129,21 +147,29 @@ class CImageViewer:
         # with ui.card().tight():
         with ui.grid().style(
             "grid-template-columns: 1fr; "
-            "grid-template-rows: 30px auto 30px;"
+            "grid-template-rows: max-content auto max-content;"
             f"width: 100%; height: {_sHeight};"
             "justify-items: stretch;"
+            "gap: 5px 0px;"
+            "align-items: center;"
             "background: white;"
             "opacity: 1"
         ):
-            with ui.element("q-bar"):
-                self._uiLabelTitle = ui.label(_sTitle)
-                self._uiLabelTitle.tailwind.text_color("black")
+            # with ui.element("q-bar"):
+            # with ui.element("div").classes("w-full"):
+            with ui.grid().classes("w-full").style(
+                "grid-template-columns: auto auto min-content min-content;"
+                "grid-template-rows: 1fr;"
+                "justify-items: stretch;"
+            ):
+                self._uiDivTitle = ui.element("div")
                 ui.element("q-space")
                 if _bShowFullscreen is True:
                     ui.button(icon="fullscreen", on_click=self._OnFullscreen).props("dense flat")
                 # endif
                 ui.button(icon="close", on_click=_funcOnClose).props("dense flat")
             # endwith
+            self.UpdateTitle(_xTitle)
 
             self._uiScrollArea = ui.scroll_area()
             self._uiScrollArea.style(
@@ -168,7 +194,9 @@ class CImageViewer:
                         ui.label(f"Image file type '{_pathImage.suffix}' not supported")
                         # endwith
                     else:
-                        self._uiImage = CUiImage(_pathImage).props('fit=cover position="0px 0px"')
+                        self._uiImage = (
+                            CUiImage(_pathImage).props('fit=cover position="0px 0px"').style("padding: 0px;")
+                        )
                         # uiImg = ui.image(_pathImage).props(
                         #     'fit=cover position="0px 0px"'
                         # )  # .style("position: 50px 100px;")  # .style("max-width: 100%;")
@@ -180,9 +208,9 @@ class CImageViewer:
                 min=-2.0,
                 max=2.0,
                 step=0.01,
-                value=0.0,
+                value=self._fScalePower,
                 on_change=lambda xArgs: self._OnScaleImage(self._uiImage, xArgs),
-            ).style("")
+            ).style("padding-bottom: 6px;")
             # endwith
         # endwith card
         self._bIsDrawn = True
@@ -190,13 +218,18 @@ class CImageViewer:
 
     # enddef
 
-    def GetImageDialog(self, _pathImage: Path, _sTitle: str):
+    # ##########################################################################################################
+    def GetImageDialog(
+        self,
+        _pathImage: Path,
+        _xTitle: Optional[Union[str, list[str]]] = None,
+    ):
         # print(_pathImage)
         dlgImg = ui.dialog().props("maximized persistent")  # .style("width: 800px; max-width: 1200px;")
         with dlgImg:
             self.DrawImage(
                 _pathImage,
-                _sTitle=_sTitle,
+                _xTitle=_xTitle,
                 _sHeight="100vh",
                 _bShowFullscreen=False,
                 _funcOnClose=lambda: dlgImg.close(),
@@ -207,19 +240,30 @@ class CImageViewer:
 
     # enddef
 
-    def ShowImage(self, _pathImage: Path):
-        self.GetImageDialog(_pathImage).open()
+    # ##########################################################################################################
+    def ShowImage(
+        self,
+        _pathImage: Path,
+        _xTitle: Optional[Union[str, list[str]]] = None,
+    ):
+        self.GetImageDialog(_pathImage, _xTitle).open()
 
     # enddef
 
-    async def AsyncShowImage(self, _pathImage: Path, _sTitle: str):
-        await self.GetImageDialog(_pathImage, _sTitle)
+    # ##########################################################################################################
+    async def AsyncShowImage(
+        self,
+        _pathImage: Path,
+        _xTitle: Optional[Union[str, list[str]]] = None,
+    ):
+        await self.GetImageDialog(_pathImage, _xTitle)
 
     # enddef
 
+    # ##########################################################################################################
     async def _OnFullscreen(self):
         xImgViewer = CImageViewer()
-        await xImgViewer.AsyncShowImage(self._pathImage, self._sTitle)
+        await xImgViewer.AsyncShowImage(self._pathImage, self._xTitle)
         del xImgViewer
 
     # enddef
