@@ -39,8 +39,9 @@ from catharsys.config.cls_variant_group import CVariantGroup
 from catharsys.api.products.cls_path_structure import CPathStructure
 from catharsys.api.products.cls_group import CArtefactType
 from catharsys.api.products.cls_view_dim import EViewDimType
-from catharsys.api.products.cls_product_view import CProductView, CViewDimNode
+from catharsys.api.products.cls_product_view import CProductView, CViewDimNode, TCatPathValue
 from catharsys.api.products.cls_category import ECategoryType, CCategory, CCategoryTypeBool, CCategoryTypeBoolGroup
+from catharsys.api.products.cls_view_dim_node_path import CViewDimNodePath
 
 from .cls_pos_range import CPosRange, EPosRangeStyle
 from ..util.cls_thumbnails import CThumbnails
@@ -1316,10 +1317,24 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _CreateHandler_OnCheckCategory(self, _sVarId: str, _sVarValue: str, _sCatId: str):
+    def _CreateHandler_OnCheckCategory(
+        self,
+        _sVarId: str,
+        _sVarValue: str,
+        _xCatPath: CViewDimNodePath,
+        _sCatId: str,
+        _xViewDimNode: CViewDimNode,
+        _iViewDimIdx: int,
+    ):
         def Handler(_xArgs: events.ValueChangeEventArguments):
             self._xProdView.SetVarCategoryValue(
-                _sVarId=_sVarId, _sVarValue=_sVarValue, _sCatId=_sCatId, _xCatValue=bool(_xArgs.value)
+                _sVarId=_sVarId,
+                _sVarValue=_sVarValue,
+                _xCatPath=_xCatPath,
+                _sCatId=_sCatId,
+                _xViewDim=_xViewDimNode.xViewDim,
+                _iViewDimIdx=_iViewDimIdx,
+                _xCatValue=bool(_xArgs.value),
             )
 
         # enddef
@@ -1329,10 +1344,24 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _CreateHandler_OnBoolGroupSelect(self, _sVarId: str, _sVarValue: str, _sCatId: str):
+    def _CreateHandler_OnBoolGroupSelect(
+        self,
+        _sVarId: str,
+        _sVarValue: str,
+        _xCatPath: CViewDimNodePath,
+        _sCatId: str,
+        _xViewDimNode: CViewDimNode,
+        _iViewDimIdx: int,
+    ):
         def Handler(_iValue: int):
             self._xProdView.SetVarCategoryValue(
-                _sVarId=_sVarId, _sVarValue=_sVarValue, _sCatId=_sCatId, _xCatValue=int(_iValue)
+                _sVarId=_sVarId,
+                _sVarValue=_sVarValue,
+                _xCatPath=_xCatPath,
+                _sCatId=_sCatId,
+                _xViewDim=_xViewDimNode.xViewDim,
+                _iViewDimIdx=_iViewDimIdx,
+                _xCatValue=int(_iValue),
             )
 
         # enddef
@@ -1348,7 +1377,10 @@ class CVariantGroupProductView:
         *,
         _sVarId: str,
         _sVarValue: str,
-        _dicCategories: dict[str, Any],
+        _xCatPath: CViewDimNodePath,
+        _dicCategories: TCatPathValue,
+        _xViewDimNode: CViewDimNode,
+        _iViewDimIdx: int,
         _sStyle: str = "",
         _sStyleItem: str = "",
         _iMaxLineLen: int = 20,
@@ -1398,14 +1430,24 @@ class CVariantGroupProductView:
 
                 uiSubGrid.style("gap: 5px; align-self: center; justify-self: center;")
                 with uiSubGrid:
-                    for sCatId, xCatValue in _dicCategories.items():
+                    for sCatId, dicPathValue in _dicCategories.items():
                         xCatDef: CCategory = self._xProdView.GetVarCategoryDefinition(sCatId)
+                        # print("")
+                        # print(f"sVarId: {_sVarId}")
+                        # print(f"sVarValue: {_sVarValue}")
+                        # print(f"sCatId: {sCatId}")
+                        # print(f"xCatPath: {_xCatPath}")
+                        # print(f"dicPathValue: {dicPathValue}")
+                        xCatValue = _xCatPath.GetFromPathDict(dicPathValue, xCatDef.GetDefaultValue())
+
                         if xCatDef.eType == ECategoryType.BOOL:
                             xCatBool: CCategoryTypeBool = xCatDef
                             uiCheck = ui.checkbox(
                                 "",
                                 value=xCatValue,
-                                on_change=self._CreateHandler_OnCheckCategory(_sVarId, _sVarValue, sCatId),
+                                on_change=self._CreateHandler_OnCheckCategory(
+                                    _sVarId, _sVarValue, _xCatPath, sCatId, _xViewDimNode, _iViewDimIdx
+                                ),
                             )
                             if len(xCatBool.sIconColor) > 0:
                                 uiCheck.props(f"color={xCatBool.sIconColor}")
@@ -1417,13 +1459,16 @@ class CVariantGroupProductView:
                             with uiCheck:
                                 ui.tooltip(xCatDef.sName)
                             # endwith
+
                         elif xCatDef.eType == ECategoryType.BOOL_GROUP:
                             xCatBoolGroup: CCategoryTypeBoolGroup = xCatDef
                             CUiBoolGroup(
                                 xCatBoolGroup,
                                 _iValue=xCatValue,
                                 _bVertical=_bVertical,
-                                _funcOnChange=self._CreateHandler_OnBoolGroupSelect(_sVarId, _sVarValue, sCatId),
+                                _funcOnChange=self._CreateHandler_OnBoolGroupSelect(
+                                    _sVarId, _sVarValue, _xCatPath, sCatId, _xViewDimNode, _iViewDimIdx
+                                ),
                             )
                         else:
                             ui.label(sCatId)
@@ -1509,13 +1554,13 @@ class CVariantGroupProductView:
         lViewDimRowLabels: list[str] = None
         iViewDimRowLabelCnt: int = 0
         sViewDimRowVarId: str = None
-        lViewDimRowCats: list[dict[str, Any]] = None
+        lViewDimRowCats: list[TCatPathValue] = None
         lViewDimRowValues: list[str] = None
         if xViewDimNodeCol is not None:
             lViewDimRowLabels = list(xViewDimNodeCol.lLabels)
             iViewDimRowLabelCnt = len(lViewDimRowLabels)
             sViewDimRowVarId: str = xViewDimNodeCol.sVarId
-            lViewDimRowCats: list[dict[str, Any]] = list(xViewDimNodeCol.lCategories)
+            lViewDimRowCats: list[TCatPathValue] = list(xViewDimNodeCol.lCategories)
             lViewDimRowValues: list[str] = list(xViewDimNodeCol.lValues)
         # endif
 
@@ -1523,8 +1568,10 @@ class CVariantGroupProductView:
         iViewDimColLabelCnt = len(lViewDimColLabels)
 
         sViewDimColVarId: str = _xViewDimNode.sVarId
-        lViewDimColCats: list[dict[str, Any]] = list(_xViewDimNode.lCategories)
+        lViewDimColCats: list[TCatPathValue] = list(_xViewDimNode.lCategories)
         lViewDimColValues: list[str] = list(_xViewDimNode.lValues)
+
+        xViewDimCatPath: CViewDimNodePath = CViewDimNodePath(_xViewDimNode, _iParent=1)
 
         # print("==================================================================")
         # print(f"iDimIdx: {_xViewDimNode.iDimIdx}")
@@ -1565,7 +1612,10 @@ class CVariantGroupProductView:
                                     sLabel,
                                     _sVarId=sViewDimRowVarId,
                                     _sVarValue=lViewDimRowValues[iRowIdx],
+                                    _xCatPath=xViewDimCatPath,
                                     _dicCategories=lViewDimRowCats[iRowIdx],
+                                    _xViewDimNode=xViewDimNodeCol,
+                                    _iViewDimIdx=iRowIdx,
                                     _sStyle=sStyle,
                                     _sStyleItem=sStyleItem,
                                     _iMaxLineLen=20,
@@ -1595,7 +1645,10 @@ class CVariantGroupProductView:
                                 sLabel,
                                 _sVarId=sViewDimColVarId,
                                 _sVarValue=lViewDimColValues[iColIdx],
+                                _xCatPath=xViewDimCatPath,
                                 _dicCategories=lViewDimColCats[iColIdx],
+                                _xViewDimNode=_xViewDimNode,
+                                _iViewDimIdx=iColIdx,
                                 _sStyleItem=sStyleItem,
                                 _iMaxLineLen=30,
                             )
