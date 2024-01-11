@@ -1413,7 +1413,11 @@ class CVariantGroupProductView:
         # endif
 
         with uiEl:
-            ui.html(sNewLabel).style(sLabelStyle)
+            with ui.element("div").style(sLabelStyle):
+                ui.html(sNewLabel)
+                ui.tooltip(f"{_xViewDimNode.xViewDim.sDimLabel} - {_sLabel}")
+            # endwith
+
             if bHasCats:
                 uiSubGrid = ui.grid()
                 if _bVertical is False:
@@ -1516,7 +1520,11 @@ class CVariantGroupProductView:
         # print(f"iBlockColCnt: {iBlockColCnt}")
         # print(f"iGridBlockCnt: {iGridBlockCnt}")
 
-        bShowRowLabel: bool = (iBlockColCnt > 1 or iRowCnt > 1) and xViewDimNodeCol is not None
+        bShowRowLabel: bool = (
+            (iBlockColCnt > 1 or iRowCnt > 1)
+            and xViewDimNodeCol is not None
+            and xViewDimNodeCol.bIsUniqueArtVarStartNode is False
+        )
         sRowLabelItem: str = "min-content" if bShowRowLabel else ""
 
         sGridStyle: str = (
