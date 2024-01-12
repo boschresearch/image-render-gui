@@ -958,6 +958,7 @@ class CVariantGroupProductView:
                                 self._dicArtViewDimTypeUi[sArtTypeId] = []
                                 lArtViewDimTypeUi: list[ui.select] = self._dicArtViewDimTypeUi[sArtTypeId]
                                 with ui.row().classes("w-full"):
+                                    bRow: bool = True
                                     ui.label(self._xProdView.GetArtefactTypeName(sArtTypeId))
                                     for iDimIdx, sDimKey in enumerate(dicViewDimNames.keys()):
                                         # print(f"lViewDimNamesSel: {lViewDimNamesSel}")
@@ -982,10 +983,11 @@ class CVariantGroupProductView:
                                         # endif
                                         # print(f"Post sDimSel: {sDimSel}")
 
+                                        sName: str = "Row" if bRow is True else "Column"
                                         lArtViewDimTypeUi.append(
                                             self._CreateSelectUi(
                                                 _lOptions=dicViewDimNames,
-                                                _sLabel=f"Dim {(iDimIdx+1)}",
+                                                _sLabel=f"Along {sName} {((iDimIdx//2)+1)}",
                                                 _xValue=sDimSel,
                                                 _funcOnChange=self._CreateCallback_OnChangeArtViewDimSelectUi(
                                                     sArtTypeId, iDimIdx
@@ -993,6 +995,8 @@ class CVariantGroupProductView:
                                             )
                                         )
                                         lNewViewDimNamesSel.append(sDimSel)
+                                        bRow = not bRow
+
                                     # endfor art var
                                 # endwith row
 
