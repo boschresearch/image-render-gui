@@ -63,6 +63,10 @@ class CImageViewer:
 
     # ##########################################################################################################
     def ScaleImage(self, _uiImage: ui.image, _fScalePower: float):
+        if _uiImage is None:
+            return
+        # endif
+
         self._fScalePower = _fScalePower
         fScale = math.exp(self._fScalePower)
         iW = fScale * self._iImgWidth
