@@ -25,6 +25,7 @@ import base64
 import hashlib
 import shutil
 import numpy as np
+from typing import Union
 from pathlib import Path
 import catharsys.plugins.std.util.imgproc as imgproc
 
@@ -136,25 +137,39 @@ class CThumbnails:
     # enddef
 
     # #########################################################################
-    def ProvideThumbnailPath(self, _pathImage: Path) -> Path:
-        if not _pathImage.exists():
-            raise RuntimeError(f"File does not exist: {(_pathImage.as_posix())}")
+    def ProvideThumbnailPath(
+        self, _pathImage: Union[str, Path], *, _bCreateOnDemand: bool = True, _bReturnString: bool = False
+    ) -> Union[Path, str]:
+        if isinstance(_pathImage, str):
+            pathImage = Path(_pathImage)
+        else:
+            pathImage = _pathImage
         # endif
 
+        if not pathImage.exists():
+            raise RuntimeError(f"File does not exist: {(pathImage.as_posix())}")
+        # endif
+        pathThumbFile: Path = None
         pathThumb = self.GetThumbnailPath()
         if pathThumb.exists():
-            sThumbFile, sThumbName = self.GetThumbnailNames(_pathImage)
+            sThumbFile, sThumbName = self.GetThumbnailNames(pathImage)
             pathThumbFile = pathThumb / sThumbFile
             if not pathThumbFile.exists():
                 for pathFile in pathThumb.glob(f"{sThumbName}*.{self._sFileTypeExt}"):
                     pathFile.unlink()
                 # endfor
-                pathThumbFile = self.CreateThumbnail(_pathImage)
+                pathThumbFile = None
+                if _bCreateOnDemand:
+                    pathThumbFile = self.CreateThumbnail(pathImage)
+                # endif
             # endif
-        else:
-            pathThumbFile = self.CreateThumbnail(_pathImage)
+        elif _bCreateOnDemand:
+            pathThumbFile = self.CreateThumbnail(pathImage)
         # endif
 
+        if _bReturnString:
+            return pathThumbFile.as_posix()
+        # endif
         return pathThumbFile
 
     # enddef
