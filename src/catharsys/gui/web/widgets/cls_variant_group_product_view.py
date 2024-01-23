@@ -86,6 +86,8 @@ class CVariantGroupProductView:
         self._iBlockScanArtefacts: int = 0
         self._iBlockUpdateProductView: int = 0
 
+        self._bDoUpdateArtefactSelection: bool = False
+
         self._lGrpVarValueLists: list[list[str]] = None
         self._dicArtVarValueLists: dict[str, list[list[str]]] = None
 
@@ -696,6 +698,7 @@ class CVariantGroupProductView:
 
     # ##########################################################################################################
     async def _OnAsyncChangeSelectGroupVar(self, _sVarId: str, _xArgs: events.ValueChangeEventArguments):
+        # print("OnAsyncChangeSelectGroupVar start...")
         if self._iBlockOnChangeSelectGroupVar == 0:
             self._iBlockOnChangeSelectGroupVar += 1
             self._CheckVarSelectUi(_xArgs)
@@ -703,10 +706,13 @@ class CVariantGroupProductView:
             sSelGrp = str(self._uiSelGrp.value)
             self._dicVgGrpVarSel[sSelGrp][_sVarId] = _xArgs.sender.value
 
+            self._bDoUpdateArtefactSelection = True
             self._iBlockOnChangeSelectGroupVar -= 1
-
-            await self.UpdateArtefactSelection()
+            # print("UpdateArtefactSelection call...")
+            # await self.UpdateArtefactSelection()
+            # print("UpdateArtefactSelection done")
         # enddef
+        # print("OnAsyncChangeSelectGroupVar end...")
 
     # enddef
 
@@ -748,14 +754,18 @@ class CVariantGroupProductView:
 
     # ##########################################################################################################
     async def UpdateArtefactSelection(self):
+        # print("UpdateArtefactSelection start...")
         self._iBlockOnChangeSelectArtVar += 1
         try:
+            self._bDoUpdateArtefactSelection = False
+
             # print("Getting selected UI values...")
             lSelGrpVarValueLists = self._GetSelectedUiValues(
                 _dicVarSelectUi=self._dicGrpVarSelectUi,
                 _lVarValueLists=self._xProdView.lGrpVarValueLists,
                 _lVarIds=self._xProdView.lGrpPathVarIds,
             )
+            # print(f"lSelGrpVarValueLists: {lSelGrpVarValueLists[0:5]}")
 
             # print("Set selected group var value lists...")
             xLoop = asyncio.get_running_loop()
@@ -836,6 +846,7 @@ class CVariantGroupProductView:
 
         finally:
             self._iBlockOnChangeSelectArtVar -= 1
+            # print("UpdateArtefactSelection end")
         # endtry
 
     # enddef
@@ -945,6 +956,7 @@ class CVariantGroupProductView:
 
     # ##########################################################################################################
     def UpdateViewDims(self):
+        # print("UpdateViewDims start...")
         self._xProdView.ClearArtefactVarSelection()
 
         # Find the artefact variables where more than one value is selected.
@@ -1168,6 +1180,7 @@ class CVariantGroupProductView:
                 # endwith card
             # endwith grid
         # endwith Row
+        # print("UpdateViewDims end...")
 
     # enddef
 
@@ -1263,6 +1276,10 @@ class CVariantGroupProductView:
                 return
             # endif
 
+            if self._bDoUpdateArtefactSelection is True:
+                await self.UpdateArtefactSelection()
+            # endif
+
             # Create view dimensions iteration structure
             # print(f"self._dicViewDimRangeUi: {self._dicViewDimRangeUi}")
             self._xProdView.ClearViewDims()
@@ -1280,6 +1297,7 @@ class CVariantGroupProductView:
                     iMin = int(xRange.fValueMin) - 1
                     iMax = int(xRange.fValueMax) - 1
                 # endif
+                # print(f"iMin, iMax: {iMin}, {iMax}")
                 self._xProdView.AddViewDim(_sDimKey=sDimKey, _iRangeMin=iMin, _iRangeMax=iMax)
             # endfor view dims
 
@@ -1665,6 +1683,7 @@ class CVariantGroupProductView:
 
         sViewDimColVarId: str = _xViewDimNode.sVarId
         lViewDimColCats: list[TCatPathValue] = list(_xViewDimNode.lCategories)
+        # print(f"sVarId: {sViewDimColVarId}")
         lViewDimColValues: list[str] = list(_xViewDimNode.lValues)
 
         xViewDimCatPath: CViewDimNodePath = CViewDimNodePath(_xViewDimNode, _iParent=1)
