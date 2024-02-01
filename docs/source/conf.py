@@ -58,8 +58,8 @@ release = sVersion
 extensions = [
     "sphinx.ext.intersphinx",
     ## if myst_nb is included, don't include 'myst_parser'
-    # 'myst_parser',
-    "myst_nb",
+    "myst_parser",
+    # "myst_nb",
 ]
 
 myst_enable_extensions = [
