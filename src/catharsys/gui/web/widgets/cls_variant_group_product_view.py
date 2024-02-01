@@ -86,6 +86,8 @@ class CVariantGroupProductView:
         self._iBlockScanArtefacts: int = 0
         self._iBlockUpdateProductView: int = 0
 
+        self._bDoUpdateArtefactSelection: bool = False
+
         self._lGrpVarValueLists: list[list[str]] = None
         self._dicArtVarValueLists: dict[str, list[list[str]]] = None
 
@@ -237,6 +239,10 @@ class CVariantGroupProductView:
                                         self._uiLabelScan = ui.label("")
                                         self._uiSpinScan = ui.spinner("dots", size="xl", color="primary")
                                         self._uiSpinScan.set_visibility(False)
+                                        self._uiProgressScan = ui.linear_progress(0, show_value=False).props(
+                                            "instant-feedback"
+                                        )
+                                        self._uiProgressScan.set_visibility(False)
 
                                         # Close Button if handler is available
                                         if self._funcOnClose is not None:
@@ -370,7 +376,8 @@ class CVariantGroupProductView:
         iSize: int = int(_xArgs.value)
         self._xThumbnails.iTargetWidth = iSize
         self._UpdateThumbImageStyle()
-        self.UpdateProductView()
+        # self.UpdateProductView()
+        ui.timer(0.2, self.UpdateProductView, once=True)
 
     # enddef
 
@@ -431,6 +438,32 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
+    def _OnScanStatus(self, _sStatus: str):
+        self._uiLabelScan.set_text(_sStatus)
+
+    # enddef
+
+    # ##########################################################################################################
+    def _OnScanIterInit(self, _sTitle: str, _iMax: int):
+        self._uiLabelScan.set_text(_sTitle)
+        self._uiProgressScan.set_visibility(True)
+        self._uiProgressScan.set_value(0)
+        self._iScanIdx: int = 0
+        self._iScanCount: int = _iMax
+
+    # enddef
+
+    # ##########################################################################################################
+    def _OnScanIterUpdate(self, _iInc: int, _bEnd: bool = False):
+        self._iScanIdx += _iInc
+        self._uiProgressScan.set_value(self._iScanIdx / self._iScanCount)
+        if _bEnd:
+            self._uiProgressScan.set_visibility(False)
+        # endif
+
+    # enddef
+
+    # ##########################################################################################################
     async def ScanArtefacts(self, *, _bForceRescan: bool = False):
         if self._iBlockScanArtefacts == 0:
             self._iBlockScanArtefacts += 1
@@ -442,6 +475,8 @@ class CVariantGroupProductView:
                 sSelGrp = str(self._uiSelGrp.value)
                 pathScanCache: Path = self._GetScanCacheFilename(sSelGrp)
                 if pathScanCache.exists() and _bForceRescan is False:
+                    # print(f"Loading scan cache from: {pathScanCache}")
+                    self._uiLabelScan.set_text("Loading scan from cache...")
                     xLoop = asyncio.get_running_loop()
                     with concurrent.futures.ThreadPoolExecutor() as xPool:
                         await xLoop.run_in_executor(
@@ -449,12 +484,21 @@ class CVariantGroupProductView:
                         )
                     # endwith
                 else:
-                    self._uiLabelScan.set_text("Scanning...")
+                    # print(f"Scanning filesystem for artefacts in group: {sSelGrp}")
+                    self._uiLabelScan.set_text("Scanning file system...")
                     pathScanCache.parent.mkdir(parents=True, exist_ok=True)
 
                     xLoop = asyncio.get_running_loop()
                     with concurrent.futures.ThreadPoolExecutor() as xPool:
-                        await xLoop.run_in_executor(xPool, lambda: self._xProdView.ScanArtefacts(_sGroupId=sSelGrp))
+                        await xLoop.run_in_executor(
+                            xPool,
+                            lambda: self._xProdView.ScanArtefacts(
+                                _sGroupId=sSelGrp,
+                                _funcStatus=self._OnScanStatus,
+                                _funcIterInit=self._OnScanIterInit,
+                                _funcIterUpdate=self._OnScanIterUpdate,
+                            ),
+                        )
                         await xLoop.run_in_executor(xPool, lambda: self._xProdView.SerializeScan(pathScanCache))
                     # endwith
                 # endif
@@ -463,17 +507,22 @@ class CVariantGroupProductView:
                     await self._xMessage.AsyncShowMessage(sMessage, _eType=EMessageType.WARNING, _bDialog=False)
                 # endfor
 
+                # print("Updating group...")
+                self._uiLabelScan.set_text("Processing scan...")
+                await self.UpdateGroup()
                 self._UpdateScanCacheLabel()
-                self.UpdateGroup()
+
             except Exception as xEx:
                 self._xMessage.ShowException("Error scanning artefacts", xEx)
 
             finally:
+                # print("finally start...")
                 self._uiSpinScan.set_visibility(False)
                 # self._uiButScan.set_visibility(True)
                 self._uiButUpdateView.enable()
                 self._uiButScan.enable()
                 self._iBlockScanArtefacts -= 1
+                # print("finally end...")
             # endtry
 
         # endif
@@ -483,7 +532,16 @@ class CVariantGroupProductView:
     # ##########################################################################################################
     def _OnChangeSelectGroup(self, _xArgs: events.ValueChangeEventArguments):
         if self._iBlockOnChangeSelectGroup == 0:
-            self.UpdateGroup()
+            # self.UpdateGroup()
+            ui.timer(0.1, functools.partial(self._OnAsyncChangeSelectGroup, _xArgs), once=True)
+        # enddef
+
+    # enddef
+
+    # ##########################################################################################################
+    async def _OnAsyncChangeSelectGroup(self, _xArgs: events.ValueChangeEventArguments):
+        if self._iBlockOnChangeSelectGroup == 0:
+            await self.UpdateGroup()
         # enddef
 
     # enddef
@@ -527,23 +585,33 @@ class CVariantGroupProductView:
         lValues: list[str]
 
         for sVarId, lValues, lLabels in zip(_xPathStruct.lPathVarIds, _lVarValueLists, _lVarLabelLists):
+            # print(f"sVarId, len(lValues): {sVarId}, {len(lValues)}")
+
             if len(lValues) <= 1:
                 continue
             # endif
             lSel: list[str] = _dicVarSel.get(sVarId)
 
             dicOptions = {ESpecialSelectIds.ALL: "All"}
-            dicOptions.update({k: v for k, v in zip(lValues, lLabels)})
+            if len(lValues) <= 32:
+                dicOptions.update({k: v for k, v in zip(lValues, lLabels)})
 
-            if lSel is None:
-                lSel = [ESpecialSelectIds.ALL]
-            else:
-                lSel = [x for x in lSel if x in dicOptions]
-                if len(lSel) == 0:
+                if lSel is None:
                     lSel = [ESpecialSelectIds.ALL]
+                else:
+                    lSel = [x for x in lSel if x in dicOptions]
+                    if len(lSel) == 0:
+                        lSel = [ESpecialSelectIds.ALL]
+                    # endif
                 # endif
+            else:
+                lSel = [ESpecialSelectIds.ALL]
             # endif
+
             _dicVarSel[sVarId] = lSel
+
+            # print(f"dicOptions: {dicOptions}")
+            # print(f"lSel: {lSel}")
 
             xPathVar = _xPathStruct.dicVars[sVarId]
             dicVarSelectUi[sVarId] = self._CreateSelectUi(
@@ -560,7 +628,7 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def UpdateGroup(self):
+    async def UpdateGroup(self):
         self._iBlockOnChangeSelectGroup += 1
         self._iBlockOnChangeSelectGroupVar += 1
         try:
@@ -594,7 +662,9 @@ class CVariantGroupProductView:
                     )
                 # endwith group row
 
-                self.UpdateArtefactSelection()
+                # print("Updating artefact selection...")
+                await self.UpdateArtefactSelection()
+                # print("Update artefact selection done")
             # endif
         except Exception as xEx:
             self._xMessage.ShowException("Error updating group", xEx)
@@ -621,16 +691,28 @@ class CVariantGroupProductView:
     # ##########################################################################################################
     def _OnChangeSelectGroupVar(self, _sVarId: str, _xArgs: events.ValueChangeEventArguments):
         if self._iBlockOnChangeSelectGroupVar == 0:
+            ui.timer(0.1, functools.partial(self._OnAsyncChangeSelectGroupVar, _sVarId, _xArgs), once=True)
+        # endif
+
+    # enddef
+
+    # ##########################################################################################################
+    async def _OnAsyncChangeSelectGroupVar(self, _sVarId: str, _xArgs: events.ValueChangeEventArguments):
+        # print("OnAsyncChangeSelectGroupVar start...")
+        if self._iBlockOnChangeSelectGroupVar == 0:
             self._iBlockOnChangeSelectGroupVar += 1
             self._CheckVarSelectUi(_xArgs)
 
             sSelGrp = str(self._uiSelGrp.value)
             self._dicVgGrpVarSel[sSelGrp][_sVarId] = _xArgs.sender.value
 
+            self._bDoUpdateArtefactSelection = True
             self._iBlockOnChangeSelectGroupVar -= 1
-
-            self.UpdateArtefactSelection()
+            # print("UpdateArtefactSelection call...")
+            # await self.UpdateArtefactSelection()
+            # print("UpdateArtefactSelection done")
         # enddef
+        # print("OnAsyncChangeSelectGroupVar end...")
 
     # enddef
 
@@ -671,19 +753,28 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def UpdateArtefactSelection(self):
+    async def UpdateArtefactSelection(self):
+        # print("UpdateArtefactSelection start...")
         self._iBlockOnChangeSelectArtVar += 1
         try:
+            self._bDoUpdateArtefactSelection = False
+
+            # print("Getting selected UI values...")
             lSelGrpVarValueLists = self._GetSelectedUiValues(
                 _dicVarSelectUi=self._dicGrpVarSelectUi,
                 _lVarValueLists=self._xProdView.lGrpVarValueLists,
                 _lVarIds=self._xProdView.lGrpPathVarIds,
             )
+            # print(f"lSelGrpVarValueLists: {lSelGrpVarValueLists[0:5]}")
 
-            self._xProdView.SetSelectedGroupVarValueLists(lSelGrpVarValueLists)
-
-            # print(f"self._dicArtVarValueLists: {self._dicArtVarValueLists}")
-            # print(f"self._dicArtVarTypeLists: {self._dicArtVarTypeLists}")
+            # print("Set selected group var value lists...")
+            xLoop = asyncio.get_running_loop()
+            with concurrent.futures.ThreadPoolExecutor() as xPool:
+                await xLoop.run_in_executor(
+                    xPool, lambda: self._xProdView.SetSelectedGroupVarValueLists(lSelGrpVarValueLists)
+                )
+            # endwith
+            # self._xProdView.SetSelectedGroupVarValueLists(lSelGrpVarValueLists)
 
             self._dicArtVarSelectUi: dict[str, dict[str, ui.element]] = dict()
 
@@ -745,13 +836,17 @@ class CVariantGroupProductView:
                 # endwith column
             # endwith artefact selection row
 
+            # print("Set selected artefact variable ids...")
             self._xProdView.SetSelectedArtefactVariableIds(dicSelArtTypeVarId)
+            # print("Update View Dims...")
             self.UpdateViewDims()
+            # print("Update View Dims done")
         except Exception as xEx:
             self._xMessage.ShowException("Error updating artefact selection", xEx)
 
         finally:
             self._iBlockOnChangeSelectArtVar -= 1
+            # print("UpdateArtefactSelection end")
         # endtry
 
     # enddef
@@ -861,6 +956,7 @@ class CVariantGroupProductView:
 
     # ##########################################################################################################
     def UpdateViewDims(self):
+        # print("UpdateViewDims start...")
         self._xProdView.ClearArtefactVarSelection()
 
         # Find the artefact variables where more than one value is selected.
@@ -1024,7 +1120,7 @@ class CVariantGroupProductView:
                                             _fValueMin=1,
                                             _fValueMax=min(6, iGrpVarCnt),
                                             _fRangeMin=1,
-                                            _fRangeMax=min(100, iGrpVarCnt),
+                                            _fRangeMax=min(30, iGrpVarCnt),
                                             _sLabel=sDimName,
                                             _eStyle=EPosRangeStyle.STACKED,
                                             _funcOnChanged=self._OnChangeViewRange,
@@ -1084,6 +1180,7 @@ class CVariantGroupProductView:
                 # endwith card
             # endwith grid
         # endwith Row
+        # print("UpdateViewDims end...")
 
     # enddef
 
@@ -1165,7 +1262,7 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def UpdateProductView(self):
+    async def UpdateProductView(self):
         if self._iBlockUpdateProductView > 0:
             return
         # endif
@@ -1177,6 +1274,10 @@ class CVariantGroupProductView:
                     "No data available. Try scanning the filesystem.", _eType=EMessageType.WARNING, _bDialog=False
                 )
                 return
+            # endif
+
+            if self._bDoUpdateArtefactSelection is True:
+                await self.UpdateArtefactSelection()
             # endif
 
             # Create view dimensions iteration structure
@@ -1196,6 +1297,7 @@ class CVariantGroupProductView:
                     iMin = int(xRange.fValueMin) - 1
                     iMax = int(xRange.fValueMax) - 1
                 # endif
+                # print(f"iMin, iMax: {iMin}, {iMax}")
                 self._xProdView.AddViewDim(_sDimKey=sDimKey, _iRangeMin=iMin, _iRangeMax=iMax)
             # endfor view dims
 
@@ -1247,7 +1349,7 @@ class CVariantGroupProductView:
             else:
                 self._uiRowViewArt.clear()
                 with self._uiRowViewArt:
-                    self._ShowViewDimRow(_xViewDimNode=xViewDimNode)
+                    await self._ShowViewDimRow(_xViewDimNode=xViewDimNode)
                 # endwith
             # endif
         except Exception as xEx:
@@ -1489,7 +1591,7 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _ShowViewDimRow(self, *, _xViewDimNode: CViewDimNode):
+    async def _ShowViewDimRow(self, *, _xViewDimNode: CViewDimNode):
         iBlockColCnt = _xViewDimNode.iRange
 
         iRowCnt = 1
@@ -1581,6 +1683,7 @@ class CVariantGroupProductView:
 
         sViewDimColVarId: str = _xViewDimNode.sVarId
         lViewDimColCats: list[TCatPathValue] = list(_xViewDimNode.lCategories)
+        # print(f"sVarId: {sViewDimColVarId}")
         lViewDimColValues: list[str] = list(_xViewDimNode.lValues)
 
         xViewDimCatPath: CViewDimNodePath = CViewDimNodePath(_xViewDimNode, _iParent=1)
@@ -1673,11 +1776,11 @@ class CVariantGroupProductView:
 
                             # Create row elements
                             if xViewDimNodeCol is None:
-                                self._ShowViewDimArt()
+                                await self._ShowViewDimArt()
                             elif xViewDimNodeCol.bIsUniqueArtVarStartNode is True:
-                                self._ShowViewDimRow(_xViewDimNode=xViewDimNodeCol)
+                                await self._ShowViewDimRow(_xViewDimNode=xViewDimNodeCol)
                             else:
-                                self._ShowViewDimCol(_xViewDimNode=xViewDimNodeCol)
+                                await self._ShowViewDimCol(_xViewDimNode=xViewDimNodeCol)
                             # endif
 
                             _xViewDimNode.Next()
@@ -1690,7 +1793,7 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _ShowViewDimCol(self, *, _xViewDimNode: CViewDimNode):
+    async def _ShowViewDimCol(self, *, _xViewDimNode: CViewDimNode):
         xViewDimNodeCol = _xViewDimNode.NextDim()
 
         sPre = ">" * _xViewDimNode.iDimIdx
@@ -1715,9 +1818,9 @@ class CVariantGroupProductView:
             # # endif
 
             if xViewDimNodeCol is None:
-                self._ShowViewDimArt()
+                await self._ShowViewDimArt()
             else:
-                self._ShowViewDimRow(_xViewDimNode=xViewDimNodeCol)
+                await self._ShowViewDimRow(_xViewDimNode=xViewDimNodeCol)
             # endif
 
             if _xViewDimNode.Next() is False:
@@ -1740,7 +1843,7 @@ class CVariantGroupProductView:
     # enddef
 
     # ##########################################################################################################
-    def _ShowViewDimArt(self):
+    async def _ShowViewDimArt(self):
         ndArt, xArtType = self._xProdView.GetViewDimNodeIterationValue()
         sStyleItem: str = "padding: 3px;justify-self: center;align-self: center;"
 
@@ -1799,8 +1902,18 @@ class CVariantGroupProductView:
             # endif
 
             if pathArt.suffix in [".png", ".jpg", ".exr"]:
-                pathThumb = self._xThumbnails.ProvideThumbnailPath(pathArt)
-                with ui.image(pathThumb).style("padding: 3px;") as uiImage:
+                pathThumb = self._xThumbnails.ProvideThumbnailPath(pathArt, _bCreateOnDemand=False)
+                if pathThumb is None:
+                    xLoop = asyncio.get_running_loop()
+                    with concurrent.futures.ThreadPoolExecutor() as xPool:
+                        pathThumb = await xLoop.run_in_executor(
+                            xPool,
+                            lambda: self._xThumbnails.ProvideThumbnailPath(pathArt),
+                        )
+                    # endwith
+                # endif
+
+                with ui.image(pathThumb.as_posix()).style("padding: 3px;") as uiImage:
                     uiImage.on("click", functools.partial(self._OnShowImageViewer, pathArt, lPathNames, False))
                     uiImage.props("fit=contain").style(self._sThumbImageStyle)
                     if sTooltip is not None:
