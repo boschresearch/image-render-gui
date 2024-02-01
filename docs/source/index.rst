@@ -27,6 +27,8 @@ Web GUI
 
    get_started
    image_viewer
+   license
+   back-to-main
 
 .. Indices and tables
 .. ==================
