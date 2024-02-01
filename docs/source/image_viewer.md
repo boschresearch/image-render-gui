@@ -64,60 +64,60 @@ Here is an example `production.json`:
 ```json
 {
     // The data-type-information (DTI) string. It must be exactly this.
-    sDTI: "/catharsys/production:1.0",
+    "sDTI": "/catharsys/production:1.0",
 
     // You can specify a number of view groups that can be selected in the viewer
-    mGroups: {
+    "mGroups": {
 
         // this is the id of a view group. You can use any id name here.
-        std: {
+        "std": {
             // This is the displayed name for this view group
-            sName: "Standard Render Output",
+            "sName": "Standard Render Output",
             // This is the group path structure, as explained above
-            sPathStructure: "!production/!rq/!project/std/?fps/?camera",
+            "sPathStructure": "!production/!rq/!project/std/?fps/?camera",
             // The user defined variables are described here.
             // Currently, you can only define a display name. In future versions
             // additional parameters per use variable may be defined here.
-            mVars: {
+            "mVars": {
                 "fps": {
-                    sName: "FPS",
+                    "sName": "FPS",
                 },
                 "camera": {
-                    sName: "Camera",
+                    "sName": "Camera",
                 },
             },
 
             // This is the block where all artefacts are defined
-            mArtefacts: {
+            "mArtefacts": {
                 // This is the artefact id. You can use any name here.
-                images: {
+                "images": {
                     // This DTI specifies the type of the artefact object.
                     // In this case, these are PNG images. Other supported image file
                     // extensions are 'jpg' and 'exr'.
-                    sDTI: "/catharsys/production/artefact/image/png:1.0",
+                    "sDTI": "/catharsys/production/artefact/image/png:1.0",
                     // This is the display name of the artefact
-                    sName: "Image",
+                    "sName": "Image",
                     // The artefact path structure pattern
-                    sPathStructure: "Image/!frame",
+                    "sPathStructure": "Image/!frame",
                 },
-                depth: {
-                    sDTI: "/catharsys/production/artefact/image/png:1.0",
-                    sName: "Depth",
-                    sPathStructure: "AT_Depth/full_res/Preview/!frame",
+                "depth": {
+                    "sDTI": "/catharsys/production/artefact/image/png:1.0",
+                    "sName": "Depth",
+                    "sPathStructure": "AT_Depth/full_res/Preview/!frame",
                 },
-                label: {
-                    sDTI: "/catharsys/production/artefact/image/png:1.0",
-                    sName: "Label",
-                    sPathStructure: "AT_Label/full_res/Preview/!frame",
+                "label": {
+                    "sDTI": "/catharsys/production/artefact/image/png:1.0",
+                    "sName": "Label",
+                    "sPathStructure": "AT_Label/full_res/Preview/!frame",
                 },
-                focus: {
-                    sDTI: "/catharsys/production/artefact/image/png:1.0",
-                    sName: "Focus",
-                    sPathStructure: "Focus/?fd/!frame",
+                "focus": {
+                    "sDTI": "/catharsys/production/artefact/image/png:1.0",
+                    "sName": "Focus",
+                    "sPathStructure": "Focus/?fd/!frame",
                     // specification of the user variables for the artefact path structure
-                    mVars: {
+                    "mVars": {
                         "fd": {
-                            sName: "Focus distance",
+                            "sName": "Focus distance",
                         },
                     }
                 },
@@ -172,20 +172,20 @@ You can also display meta information per artefact. For example, in one configur
 These JSON files are stored in a folder `control` next to the artefact image, using the name pattern `Frame_[number]_config.json`. The following artefact configuration accesses the elements `sPrompt` and `sNegativePrompt` from the JSON5 file and displays it as tooltip if you hover over the respective image.
 
 ```json
-    mArtefacts: {
-        generative: {
-            sDTI: "/catharsys/production/artefact/image/png:1.0",
-            sName: "Generative",
-            sPathStructure: "Takuma-Diffusers/?gen-cfg/?gen-prompt-cfg/?prompt/?seed/!frame",
+    "mArtefacts": {
+        "generative": {
+            "sDTI": "/catharsys/production/artefact/image/png:1.0",
+            "sName": "Generative",
+            "sPathStructure": "Takuma-Diffusers/?gen-cfg/?gen-prompt-cfg/?prompt/?seed/!frame",
 
             // This block can contain any number of meta data references
-            mMeta: {
+            "mMeta": {
                 // This is an arbitrary id for this meta data type
-                Config: {
+                "Config": {
                     // For JSON meta data you need to use this DTI
-                    sDTI: "/catharsys/production/artefact/meta/json:1.0",
+                    "sDTI": "/catharsys/production/artefact/meta/json:1.0",
                     // The name of the meta data
-                    sName: "Takuma Config",
+                    "sName": "Takuma Config",
                     // The path relative to the meta data file from the artefact
                     // This path is parsed with the ISON parser, whereby all path structure
                     // variables from the group path and the artefact path are available
@@ -193,12 +193,12 @@ These JSON files are stored in a folder `control` next to the artefact image, us
                     // current value of the pre-defined variable `!frame`. 
                     // The `$path.stem{}` is an ISON function that picks out the stem of a 
                     // filename. For example, for 'Frame_0001.png' this would be 'Frame_0001'.
-                    sRelPath: "control/$path.stem{$frame}_config.json",
+                    "sRelPath": "control/$path.stem{$frame}_config.json",
                     // This block defines how the meta data should be printed.
                     // There may be various ways the data is shown.
-                    mPrint: {
+                    "mPrint": {
                         // Currently, only the print type 'tooltip' is defined. 
-                        tooltip: {
+                        "tooltip": {
                             // This gives a list of lines to printed.
                             // Each string is again parsed with the ISON parser.
                             // In addition to the path structure variables, the whole JSON file
@@ -207,7 +207,7 @@ These JSON files are stored in a folder `control` next to the artefact image, us
                             // ':'-notation. That is, the element 'sPrompt' from the JSON file is
                             // picked with `${meta_data:sPrompt}`. 
                             // The element 'iWidth' could be retrieved with `${meta_data:mImage:iWidth}`.
-                            lLines: [
+                            "lLines": [
                                 "Prompt: ${meta_data:sPrompt}",
                                 "Neg. Prompt: ${meta_data:sNegativePrompt}",
                             ],
