@@ -43,3 +43,7 @@ After starting the web server with `cathy gui ws` in your workspace folder, a we
 ![Workspace View](assets/workspace-view-01-annotated.png)
 
 If you press the eye icon, a separate pane opens with the image viewer. For each configuration you can open a separate image viewer. First select the configuration and then press on the eye icon to open the respective viewer. See {doc}`image_viewer` for a detailed description of the image viewer.
+
+The main purpose of this view is to modify the launch, action and trial parameters of a configuration and execute an action. See {doc}`modify_configs` for a detailed description of this functionality.
+
+

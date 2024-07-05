@@ -27,6 +27,7 @@ Web GUI
 
    get_started
    image_viewer
+   modify_configs
    license
    back-to-main
 
