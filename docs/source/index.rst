@@ -28,6 +28,8 @@ Web GUI
    get_started
    image_viewer
    modify_configs
+   ref_controls
+   ref_gui_def
    license
    back-to-main
 
