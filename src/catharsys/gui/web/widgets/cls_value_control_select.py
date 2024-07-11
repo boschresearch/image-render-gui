@@ -149,6 +149,10 @@ class CValueControlSelect(CValueControl):
             raise RuntimeError(f"Unsupported control number type '{sDataType}")
         # endif
 
+        if self._sTooltip is not None:
+            self._uiCtrl.tooltip(self._sTooltip)
+        # endif
+
     # enddef
 
     # ###################################################################################

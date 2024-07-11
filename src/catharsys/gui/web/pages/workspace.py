@@ -167,11 +167,8 @@ class CPageWorkspace:
 
             xPageWs = CPageWorkspace.dicClients.get(client.id)
             if xPageWs is None:
-                uiHeader = ui.header(elevated=False)
-                # uiDrawerLeft = ui.left_drawer(value=False, fixed=False)
-                uiDrawerRight = ui.right_drawer(value=False, fixed=False)
                 xPageWs = CPageWorkspace(_wsX, client)
-                xPageWs.Create(_uiLayoutHeader=uiHeader, _uiLayoutRight=uiDrawerRight)
+                xPageWs.Create()
             # endif
 
         # enddef
@@ -249,7 +246,6 @@ class CPageWorkspace:
                 return
             # endif
 
-            self.xMessage.ShowWait("Reloading Configurations")
             ui.timer(0.1, functools.partial(self._OnTimerReload, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
 
         finally:
@@ -259,82 +255,215 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    async def _OnTimerReload(self, *, _bAll: bool, _bOverwrite: bool = False):
+    def _OnTimerReload(self, *, _bAll: bool, _bOverwrite: bool = False):
         try:
             self.Reload(_bAll=_bAll, _bOverwrite=_bOverwrite)
-            self.xMessage.HideWait()
         except Exception as xEx:
-            self.xMessage.HideWait()
-            await self.xMessage.AsyncShowException("reloading configurations", xEx)
+            self.xMessage.ShowException("reloading configurations", xEx)
+        # endtry
+
+    # enddef
+    
+    # #############################################################################################
+    def Reload(self, *, _bAll: bool, _bOverwrite: bool = False):
+        try:
+            sProjectName: str = str(self.selProject.value)
+            iProjectVarId: int | str = self.selProjectVariant.value
+            iLaunchVarId: int | str = self.selLaunchFileVariant.value
+            iTrialVarId: int | str = self.selTrialVariant.value
+            sTrialName: str = str(self.selTrial.value)
+            sActionPath: str = str(self.selAction.value)
+
+            # print("Refresh Workspace")
+            # print(f"sProjectName: {sProjectName}")
+            # print(f"iProjectVarId: {iProjectVarId}")
+            # print(f"iLaunchVarId: {iLaunchVarId}")
+            # print(f"iTrialVarId: {iTrialVarId}")
+            # print(f"sTrialName: {sTrialName}")
+            # print(f"sActionPath: {sActionPath}")
+            
+            self.xWorkspace = capi.CWorkspace(xWorkspace=self.xWorkspace.pathWorkspace)
+            self.CreateDataView.refresh()
+
+            self.xMessage.ShowWait("Reloading Configurations")
+            # self.xMessage.ShowMessage("test")
+
+            ui.timer(0.5, functools.partial(self._OnTimer_ReloadProject,
+                                            _sProjectName=sProjectName,
+                                            _iProjectVarId=iProjectVarId,
+                                            _iLaunchVarId=iLaunchVarId,
+                                            _iTrialVarId=iTrialVarId,
+                                            _sTrialName=sTrialName,
+                                            _sActionPath=sActionPath,
+                                            _bAll=_bAll, 
+                                            _bOverwrite=_bOverwrite), once=True)
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading workspace", xEx)
+        # endtry
+       
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadProject(self, *, 
+                                    _sProjectName: str,
+                                      _iProjectVarId: int, 
+                                      _iLaunchVarId: int,
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+
+        try:
+            # print(f"Reload Project: {_sProjectName}")
+            
+            if _sProjectName in self.xWorkspace.lProjectNames:
+                self.selProject.set_value(_sProjectName)
+                self.UpdateProject()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadProjectVariant,
+                                                _iProjectVarId=_iProjectVarId,
+                                                _iLaunchVarId=_iLaunchVarId,
+                                                _iTrialVarId=_iTrialVarId,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading project", xEx)
         # endtry
 
     # enddef
 
     # #############################################################################################
-    def Reload(self, *, _bAll: bool, _bOverwrite: bool = False):
-        sProjectName: str = str(self.selProject.value)
-        iProjectVarId: int = int(self.selProjectVariant.value)
-        iTrialVarId: int = int(self.selTrialVariant.value)
-        sTrialName: str = str(self.selTrial.value)
-        sActionPath: str = str(self.selAction.value)
-
-        self.xWorkspace = capi.CWorkspace(xWorkspace=self.xWorkspace.pathWorkspace)
-        self.Create.refresh()
-
-        # Dummy loop to implement breaking
-        while True:
-            if sProjectName not in self.xWorkspace.lProjectNames:
-                break
-            # endif
-
-            self.selProject.set_value(sProjectName)
-            self.UpdateProject()
-
+    def _OnTimer_ReloadProjectVariant(self, *, 
+                                      _iProjectVarId: int, 
+                                      _iLaunchVarId: int,
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Project Variant: {_iProjectVarId} / {_iLaunchVarId}")
             if _bAll is True:
                 self.xVariants.UpdateFromSource(_bOverwrite=_bOverwrite)
                 self.xVariants.Serialize()
             # endif
 
-            xVariantLaunch = self.xVariantGroup.GetProjectVariant(iProjectVarId)
-            if xVariantLaunch is None:
-                break
+            xVariantLaunch = self.xVariantGroup.GetProjectVariant(_iProjectVarId)
+            if xVariantLaunch is not None:
+                self.selProjectVariant.set_value(_iProjectVarId)
+
+                if _bAll is False:
+                    xVariantLaunch.UpdateFromSource(_bOverwrite=_bOverwrite)
+                    self.xVariants.Serialize()
+                # endif
+
+                self.UpdateProjectVariant(_iLaunchFileVarId=_iLaunchVarId)
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadTrialVariant,
+                                                _iTrialVarId=_iTrialVarId,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
             # endif
-
-            self.selProjectVariant.set_value(iProjectVarId)
-            self.UpdateProjectVariant()
-
-            xVariantTrial = self.xVariantProject.GetTrialVariant(iTrialVarId)
-            if xVariantTrial is None:
-                break
-            # endif
-
-            self.selTrialVariant.set_value(iTrialVarId)
-            self.UpdateTrialVariant()
-
-            if sTrialName not in self.xVariantTrial.xTrialActions.lTrialFiles:
-                break
-            # endif
-
-            self.selTrial.set_value(sTrialName)
-            self.UpdateTrial()
-
-            xActData = self.xVariantTrial.xTrialActions.GetResolvedAction(sActionPath)
-            if xActData is None:
-                break
-            # endif
-
-            self.selAction.set_value(sActionPath)
-            self.UpdateAction()
-            break
-        # endwhile dummy
-
-        if _bAll is False:
-            self.xVariantProject.UpdateFromSource(_bOverwrite=_bOverwrite)
-            self.xVariants.Serialize()
-            self.UpdateProject()
-        # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading project variant", xEx)
+        # endtry
 
     # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadTrialVariant(self, *, 
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Trial Variant: {_iTrialVarId}")
+            xVariantTrial = self.xVariantProject.GetTrialVariant(_iTrialVarId)
+            if xVariantTrial is not None:
+                self.selTrialVariant.set_value(_iTrialVarId)
+                self.UpdateTrialVariant()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadTrialFile,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading trial variant", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadTrialFile(self, *, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Trial File: {_sTrialName}")
+            if _sTrialName in self.xVariantTrial.xTrialActions.lTrialFiles:
+                self.selTrial.set_value(_sTrialName)
+                self.UpdateTrial()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadAction,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading trial file", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadAction(self, *, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Action: {_sActionPath}")
+            xActData = self.xVariantTrial.xTrialActions.GetResolvedAction(_sActionPath)
+            if xActData is not None:
+                self.selAction.set_value(_sActionPath)
+                self.UpdateAction()
+
+            # endif
+
+            ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading action", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadFinal(self, *, _bAll: bool, _bOverwrite: bool):
+
+        self.xMessage.HideWait()
+
+    # enddef
+
 
     # #############################################################################################
     def ToggleDarkMode(self):
@@ -349,10 +478,10 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    @ui.refreshable
-    def Create(self, *, _uiLayoutHeader: ui.header, _uiLayoutRight: ui.right_drawer):
-        self._uiLayoutHeader: ui.header = _uiLayoutHeader
-        self._uiLayoutRight: ui.right_drawer = _uiLayoutRight
+    # @ui.refreshable
+    def Create(self):  
+        self._uiLayoutHeader: ui.header = ui.header(elevated=False)
+        self._uiLayoutRight: ui.right_drawer = ui.right_drawer(value=False, fixed=False)
 
         self._darkMode = ui.dark_mode()
         self._darkMode.enable()
@@ -420,6 +549,13 @@ class CPageWorkspace:
 
         self._uiLayoutRight.hide()
 
+        self.CreateDataView()
+        self.UpdateProject()
+    # enddef
+
+    # #############################################################################################
+    @ui.refreshable
+    def CreateDataView(self):
         # with ui.left_drawer(top_corner=False, bottom_corner=False):
         # # endwith left drawer
         self._uiRowMain = ui.row().classes("w-full")
@@ -679,7 +815,6 @@ class CPageWorkspace:
         #     ui.label(f"User: {sUsername} - Client ID: {self.xClientId}").classes("text-xs")
         # # endwith
 
-        self.UpdateProject()
 
     # enddef
 
@@ -1072,7 +1207,7 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    def UpdateProjectVariant(self):
+    def UpdateProjectVariant(self, *, _iLaunchFileVarId: int = None):
         self.iBlockOnChangeTrialVariant += 1
         self.iBlockOnChangeLaunchFileVariant += 1
         try:
@@ -1095,7 +1230,7 @@ class CPageWorkspace:
             self.xVariantProject = self.xVariantGroup.GetProjectVariant(iPrjVarId)
             self.uiInputPrjVarInfo.set_value(self.xVariantProject.sInfo)
 
-            self._UpdateLaunchFileVariantSelection()
+            self._UpdateLaunchFileVariantSelection(_xSel=_iLaunchFileVarId)
             self._UpdateTrialVariantSelection()
 
             self.UpdateLaunchFileVariant()
@@ -1543,7 +1678,11 @@ class CPageWorkspace:
 
     # #############################################################################################
     def SaveProjectVariant(self):
-        if self.xVariantProject is not None and self.xVariantTrial is not None:
+        if (self.xVariantProject is not None 
+            and self.xVariantTrial is not None
+            and self.selLaunchFileVariant.value is not None
+            and self.selTrial.value is not None
+        ):
             if self.bLaunchDataChanged is True:
                 # print("Start save launch data")
                 # print(f"id: {(id(self.xVariantTrial.xTrialActions.dicGlobalArgs))}")

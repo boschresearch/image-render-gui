@@ -50,9 +50,21 @@ class CValueControlInput(CValueControl):
             sValue = str(_xValue)
         # endif
 
+        bIsPassword: bool = convert.DictElementToBool(_dicCtrl, "bIsPassword", bDefault=False)
+        bTogglePwView: bool = convert.DictElementToBool(_dicCtrl, "bTogglePasswordView", bDefault=False)
+
         self._uiCtrl: ui.input = ui.input(
-            label=self._sLabel, placeholder="start typing", value=sValue, on_change=lambda xArgs: self.OnChange(xArgs)
+            label=self._sLabel, 
+            placeholder="start typing", 
+            value=sValue, 
+            password=bIsPassword,
+            password_toggle_button=bTogglePwView,
+            on_change=lambda xArgs: self.OnChange(xArgs)
         )
+
+        if self._sTooltip is not None:
+            self._uiCtrl.tooltip(self._sTooltip)
+        # endif
 
     # enddef
 

@@ -126,7 +126,7 @@ class CValueGrid:
                     uiCard = ui.card().tight().props("flat bordered").classes("w-full")
                     with uiCard:
                         if len(sTitle) > 0:
-                            with ui.card_section().classes("bg-teal text-white"):
+                            with ui.card_section().classes("bg-teal text-white w-full"):
                                 ui.label(sTitle).classes("text-subtitle2")
                             # endwith
                             # ui.separator().props("inset")

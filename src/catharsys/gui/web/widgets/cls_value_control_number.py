@@ -60,8 +60,27 @@ class CValueControlNumber(CValueControl):
                 iValue = 0
             # endif
 
+            iStep = convert.DictElementToInt(_dicCtrl, "iStep", iDefault=1)
+            iMin = convert.DictElementToInt(_dicCtrl, "iMin", iDefault=None, bDoRaise=False)
+            iMax = convert.DictElementToInt(_dicCtrl, "iMax", iDefault=None, bDoRaise=False)
+            sPrefix = convert.DictElementToString(_dicCtrl, "sPrefix", sDefault=None, bDoRaise=False)
+            sSuffix = convert.DictElementToString(_dicCtrl, "sSuffix", sDefault=None, bDoRaise=False)
+            sFormat = convert.DictElementToString(_dicCtrl, "sFormat", sDefault="%d")
+
+            if not sFormat.startswith("%"):
+                sFormat = "%" + sFormat
+            # endif
+
             self._uiCtrl = ui.number(
-                label=self._sLabel, value=iValue, format="%d", on_change=lambda xArgs: self.OnChangeInt(xArgs)
+                label=self._sLabel, 
+                value=iValue, 
+                format=sFormat, 
+                step=iStep, 
+                min=iMin,
+                max=iMax,
+                prefix=sPrefix,
+                suffix=sSuffix,
+                on_change=lambda xArgs: self.OnChangeInt(xArgs)
             )
 
         elif sDataType == "float":
@@ -73,12 +92,37 @@ class CValueControlNumber(CValueControl):
                 fValue = 0.0
             # endif
 
+            fStep = convert.DictElementToFloat(_dicCtrl, "fStep", fDefault=0.01)
+            iPrecision = convert.DictElementToInt(_dicCtrl, "iPrecision", iDefault=None, bDoRaise=False)
+            fMin = convert.DictElementToFloat(_dicCtrl, "fMin", fDefault=None, bDoRaise=False)
+            fMax = convert.DictElementToFloat(_dicCtrl, "fMax", fDefault=None, bDoRaise=False)
+            sPrefix = convert.DictElementToString(_dicCtrl, "sPrefix", sDefault=None, bDoRaise=False)
+            sSuffix = convert.DictElementToString(_dicCtrl, "sSuffix", sDefault=None, bDoRaise=False)
+            sFormat = convert.DictElementToString(_dicCtrl, "sFormat", sDefault="%f")
+
+            if not sFormat.startswith("%"):
+                sFormat = "%" + sFormat
+            # endif
+            
             self._uiCtrl = ui.number(
-                label=self._sLabel, value=fValue, format="%f", on_change=lambda xArgs: self.OnChangeFloat(xArgs)
+                label=self._sLabel, 
+                value=fValue, 
+                format=sFormat, 
+                step=fStep, 
+                precision=iPrecision, 
+                min=fMin,
+                max=fMax,
+                prefix=sPrefix,
+                suffix=sSuffix,
+                on_change=lambda xArgs: self.OnChangeFloat(xArgs),
             )
 
         else:
             raise RuntimeError(f"Unsupported control number type '{sDataType}")
+        # endif
+
+        if self._sTooltip is not None:
+            self._uiCtrl.tooltip(self._sTooltip)
         # endif
 
     # enddef
