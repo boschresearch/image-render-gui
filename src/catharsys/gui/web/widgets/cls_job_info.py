@@ -71,7 +71,8 @@ class CJobInfo:
         self._lbutJobStatus: list[ui.button] = []
         with self._uiGridMain:
             ui.label(f"Action: {self._xActHandler.xAction.sAction}")
-            with ui.grid(columns=3):
+            # with ui.grid(columns=3):
+            with ui.row():
                 self._butLaunch = ui.button("Launch", on_click=self.Launch)
                 self._butTerminate = ui.button("Terminate", on_click=self.TerminateAll)
                 if self._funcOnClose is not None:

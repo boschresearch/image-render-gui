@@ -53,13 +53,11 @@ The GUI controls of all enabled configuration elements are displayed in a grid w
 
 The keys of the `mGridLayout` dictionary reference the different configuration element blocks:
 
-| Id                    | Description                                                                               |
-| --------------------- | ----------------------------------------------------------------------------------------- |
-| `actions`             | Global launch arguments, i.e. elements in `mGlobalArgs` in the launch configuration file. |
-| `actions:[action id]` | Action specific launch arguments.                                                         |
-| `trial:locals`        | The variables defined in the `__locals__` block in the trial configuration.               |
-| `trial:globals`       | The variables defined in the `__globals__` block in the trial configuration.              |
-| `trial:configs`       | The elements in the `mConfigs` block in the trial configuration.                          |
+| Id                    | Description                                                                                |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| `actions`             | Global launch arguments, i.e. elements in `mGlobalArgs` in the launch configuration file.  |
+| `actions:[action id]` | Action specific launch arguments.                                                          |
+| `trial`               | Variables defined in `__locals__`, `__globals__` and `mConfig` blocks in the trial config. |
 
 For each of the above configuration element blocks, different GUI Layouts can be defined. Each layout definition is a dictionary with the following elements:
 

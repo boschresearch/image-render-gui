@@ -54,7 +54,10 @@ class CValueControlSelect(CValueControl):
         self._lRawOptions = _dicCtrl.get("lOptions")
         if self._lRawOptions is None:
             raise RuntimeError("Select control definition misses 'lOptions' argument")
+        elif not isinstance(self._lRawOptions, list):
+            raise RuntimeError(f"Options for select control '{_sName}' are not a list: {self._lRawOptions}")
         # endif
+        
 
         self._bMultiple: bool = convert.DictElementToBool(_dicCtrl, "bMultiple", bDefault=False)
 
