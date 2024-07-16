@@ -25,7 +25,7 @@ You can create and delete variants via the menus. You can also add variants with
 Elements defined in the launch and trial configuration files can be made editable via the GUI in different ways:
 
 - element naming convention
-- per-element gui definition
+- per-element GUI definition
 - GUI definition block `mGUI`
 
 ### Element Naming Convention
@@ -64,11 +64,11 @@ To define the GUI representation of a configuration element in more detail, an a
 
 The `my_value/gui` element defines the GUI representation of `my_value` explicitly. The base definition elements available for all GUI control types are:
 
-- `sDTI`: The type of GUI control element. This element is optional, if the type can be deduced from the name as described before. For a full list of availabel control types see {doc}`ref_controls`.
+- `sDTI`: The type of GUI control element. This element is optional, if the type can be deduced from the name as described before. For a full list of availabel control types see {doc}`reference/controls`.
 - `sLabel`: The GUI element label. If this element is not given, the name is either deduced from the naming convention or the element name itself is used.
 - `sTooltip`: A tooltip for the GUI element. If this element is not given, no tooltip is shown.
 
-Every control may have additional elements to specify more details. See {doc}`ref_controls` for a full description.
+Every control may have additional elements to specify more details. See {doc}`reference/controls` for a full description.
 
 ### GUI definition block
 
@@ -84,7 +84,7 @@ The GUI can be controlled in more detail using a top-level element `mGui` in the
 | `lExcludeVars`     | list       | List of configuration elements that are **not** shown.         |
 | `mGridLayout`      | dictionary | Definition of GUI grid layout.                                 |
 
-See {doc}`ref_gui_def` for a detailed description.
+See {doc}`reference/gui_def` for a detailed description.
 
 
 ## Launch Arguments

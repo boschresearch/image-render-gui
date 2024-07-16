@@ -1,10 +1,10 @@
-# GUI Control Reference
+# GUI Controls
 
 The following lists the available GUI controls and their parameters with usage examples.
 
 All controls have the following configuration elements:
 
-- `sDTI`: The type of GUI control element. This element is optional, if the type can be deduced from the name as described before. For a full list of availabel control types see {doc}`ref_controls`.
+- `sDTI`: The type of GUI control element. This element is optional, if the type can be deduced from the name as described before. For a full list of availabel control types see {doc}`controls`.
 - `sLabel`: The GUI element label. If this element is not given, the name is either deduced from the naming convention or the element name itself is used.
 - `sTooltip`: A tooltip for the GUI element. If this element is not given, no tooltip is shown.
 

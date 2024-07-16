@@ -26,10 +26,10 @@ Web GUI
    :caption: Contents:
 
    get_started
+   workflow_ex1
    image_viewer
    modify_configs
-   ref_controls
-   ref_gui_def
+   reference/main
    license
    back-to-main
 
