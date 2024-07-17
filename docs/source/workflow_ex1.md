@@ -2,13 +2,13 @@
 
 This is a walkthrough of a typical workflow using Catharsys for rendering and post-processing with the web GUI. 
 
-To follow along with this example, you, first of all, need to have Catharsys installed ({external+image-render-setup:doc}`setup`). Then clone the workspace [`image-render-workspace-ex-gui`](https://github.com/boschresearch/image-render-workspace-ex-gui) and run 
+To follow along with this example, you need to have Catharsys installed ({external+image-render-setup:doc}`setup`). Then clone the workspace [`image-render-workspace-ex-gui`](https://github.com/boschresearch/image-render-workspace-ex-gui) and in the top folder of the cloned repository run 
 
 ```{admonition} Shell
 cathy blender init --all --addons
 ```
 
-This only works if Blender 4.1 is already installed in the Catharsys system. Otherwise, install Blender in Catharsys as described here: {external+image-render-setup:ref}`blender-setup`.
+This only works if Blender 4.1 is already installed in the Catharsys system. Otherwise, install Blender 4.1 in Catharsys as described here: {external+image-render-setup:ref}`blender-setup`.
 
 ```{admonition} TL;DR
 Open a terminal in the main folder of the cloned example workspace, run `cathy gui ws` which should open a web browser, select configuration `ex3` in the shown workspace view, select action `render`, click `prepare launch`, launch the render, go back to workspace tab, click the eye-icon, click `Scan Filesystem` and then `Update View`.
