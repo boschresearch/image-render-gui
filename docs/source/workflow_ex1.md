@@ -1,6 +1,11 @@
 # Example Workflow
 
 This is a walkthrough of a typical workflow using Catharsys for rendering and post-processing with the web GUI. 
+The basic idea is that a specialist prepares a Cataharsys configuration, exposing some parameters to the GUI that can be changed by a user. Typical parameters could be the camera to use, the objects to import and anything else that can be modified in a Blender scene. The user then uses the Web GUI to set the parameters, launch rendering and post-processing and view the rendered images. 
+
+The web server executing the renders can be on any machine that is reachable via the network. The system also supports mutliple concurrent users working with the same base configuration and starting renderings or other actions.
+
+## 0. Install the Example
 
 To follow along with this example, you need to have Catharsys installed ({external+image-render-setup:doc}`setup`). Then clone the workspace [`image-render-workspace-ex-gui`](https://github.com/boschresearch/image-render-workspace-ex-gui) and in the top folder of the cloned repository run 
 
