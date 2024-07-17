@@ -57,11 +57,10 @@ class CValueControl:
         # endif
 
         self._sTooltip = self._dicCtrl.get("sTooltip")
-        if self._sTooltip is None:
-            self._sTooltip = self._sLabel
-        # endif
+        # if self._sTooltip is None:
+        #     self._sTooltip = self._sLabel
+        # # endif
 
     # enddef
-
 
 # endclass

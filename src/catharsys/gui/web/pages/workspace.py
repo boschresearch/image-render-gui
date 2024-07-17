@@ -27,6 +27,8 @@ import re
 import asyncio
 from typing import Union, Optional
 from nicegui import ui, events, app, Client, Tailwind
+from pathlib import Path
+from catharsys.util.cls_configcml import CConfigCML
 
 try:
     from nicegui.welcome import get_all_ips as GetAllIps
@@ -52,7 +54,7 @@ from catharsys.config.cls_variant_instance import CVariantInstance
 from catharsys.api.action.cls_action_handler import CActionHandler
 from catharsys.gui.web.widgets.cls_job_info import CJobInfo
 
-from anybase import convert, config
+from anybase import convert, config, path
 
 from .login import CLogin
 
@@ -95,9 +97,7 @@ class CPageWorkspace:
         self.vgActLaunchArgs: CValueGrid = None
         self.dicLaunchGuiArgs: dict = None
 
-        self.gridTrialLocals: ui.grid = None
-        self.gridTrialGlobals: ui.grid = None
-        self.gridTrialConfigs: ui.grid = None
+        self.gridTrial: ui.grid = None
 
         self.xWorkspace: capi.CWorkspace = _wsX
         self.xProject: capi.CProject = None
@@ -167,11 +167,8 @@ class CPageWorkspace:
 
             xPageWs = CPageWorkspace.dicClients.get(client.id)
             if xPageWs is None:
-                uiHeader = ui.header(elevated=False)
-                # uiDrawerLeft = ui.left_drawer(value=False, fixed=False)
-                uiDrawerRight = ui.right_drawer(value=False, fixed=False)
                 xPageWs = CPageWorkspace(_wsX, client)
-                xPageWs.Create(_uiLayoutHeader=uiHeader, _uiLayoutRight=uiDrawerRight)
+                xPageWs.Create()
             # endif
 
         # enddef
@@ -249,7 +246,6 @@ class CPageWorkspace:
                 return
             # endif
 
-            self.xMessage.ShowWait("Reloading Configurations")
             ui.timer(0.1, functools.partial(self._OnTimerReload, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
 
         finally:
@@ -259,82 +255,214 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    async def _OnTimerReload(self, *, _bAll: bool, _bOverwrite: bool = False):
+    def _OnTimerReload(self, *, _bAll: bool, _bOverwrite: bool = False):
         try:
             self.Reload(_bAll=_bAll, _bOverwrite=_bOverwrite)
-            self.xMessage.HideWait()
         except Exception as xEx:
-            self.xMessage.HideWait()
-            await self.xMessage.AsyncShowException("reloading configurations", xEx)
+            self.xMessage.ShowException("reloading configurations", xEx)
+        # endtry
+
+    # enddef
+    
+    # #############################################################################################
+    def Reload(self, *, _bAll: bool, _bOverwrite: bool = False):
+        try:
+            sProjectName: str = str(self.selProject.value)
+            iProjectVarId: int | str = self.selProjectVariant.value
+            iLaunchVarId: int | str = self.selLaunchFileVariant.value
+            iTrialVarId: int | str = self.selTrialVariant.value
+            sTrialName: str = str(self.selTrial.value)
+            sActionPath: str = str(self.selAction.value)
+
+            # print("Refresh Workspace")
+            # print(f"sProjectName: {sProjectName}")
+            # print(f"iProjectVarId: {iProjectVarId}")
+            # print(f"iLaunchVarId: {iLaunchVarId}")
+            # print(f"iTrialVarId: {iTrialVarId}")
+            # print(f"sTrialName: {sTrialName}")
+            # print(f"sActionPath: {sActionPath}")
+            
+            self.xWorkspace = capi.CWorkspace(xWorkspace=self.xWorkspace.pathWorkspace)
+            self.CreateDataView.refresh()
+
+            self.xMessage.ShowWait("Reloading Configurations")
+
+            ui.timer(0.5, functools.partial(self._OnTimer_ReloadProject,
+                                            _sProjectName=sProjectName,
+                                            _iProjectVarId=iProjectVarId,
+                                            _iLaunchVarId=iLaunchVarId,
+                                            _iTrialVarId=iTrialVarId,
+                                            _sTrialName=sTrialName,
+                                            _sActionPath=sActionPath,
+                                            _bAll=_bAll, 
+                                            _bOverwrite=_bOverwrite), once=True)
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading workspace", xEx)
+        # endtry
+       
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadProject(self, *, 
+                                    _sProjectName: str,
+                                      _iProjectVarId: int, 
+                                      _iLaunchVarId: int,
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+
+        try:
+            # print(f"Reload Project: {_sProjectName}")
+            
+            if _sProjectName in self.xWorkspace.lProjectNames:
+                self.selProject.set_value(_sProjectName)
+                self.UpdateProject()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadProjectVariant,
+                                                _iProjectVarId=_iProjectVarId,
+                                                _iLaunchVarId=_iLaunchVarId,
+                                                _iTrialVarId=_iTrialVarId,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading project", xEx)
         # endtry
 
     # enddef
 
     # #############################################################################################
-    def Reload(self, *, _bAll: bool, _bOverwrite: bool = False):
-        sProjectName: str = str(self.selProject.value)
-        iProjectVarId: int = int(self.selProjectVariant.value)
-        iTrialVarId: int = int(self.selTrialVariant.value)
-        sTrialName: str = str(self.selTrial.value)
-        sActionPath: str = str(self.selAction.value)
-
-        self.xWorkspace = capi.CWorkspace(xWorkspace=self.xWorkspace.pathWorkspace)
-        self.Create.refresh()
-
-        # Dummy loop to implement breaking
-        while True:
-            if sProjectName not in self.xWorkspace.lProjectNames:
-                break
-            # endif
-
-            self.selProject.set_value(sProjectName)
-            self.UpdateProject()
-
+    def _OnTimer_ReloadProjectVariant(self, *, 
+                                      _iProjectVarId: int, 
+                                      _iLaunchVarId: int,
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Project Variant: {_iProjectVarId} / {_iLaunchVarId}")
             if _bAll is True:
                 self.xVariants.UpdateFromSource(_bOverwrite=_bOverwrite)
                 self.xVariants.Serialize()
             # endif
 
-            xVariantLaunch = self.xVariantGroup.GetProjectVariant(iProjectVarId)
-            if xVariantLaunch is None:
-                break
+            xVariantLaunch = self.xVariantGroup.GetProjectVariant(_iProjectVarId)
+            if xVariantLaunch is not None:
+                self.selProjectVariant.set_value(_iProjectVarId)
+
+                if _bAll is False:
+                    xVariantLaunch.UpdateFromSource(_bOverwrite=_bOverwrite)
+                    self.xVariants.Serialize()
+                # endif
+
+                self.UpdateProjectVariant(_iLaunchFileVarId=_iLaunchVarId)
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadTrialVariant,
+                                                _iTrialVarId=_iTrialVarId,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
             # endif
-
-            self.selProjectVariant.set_value(iProjectVarId)
-            self.UpdateProjectVariant()
-
-            xVariantTrial = self.xVariantProject.GetTrialVariant(iTrialVarId)
-            if xVariantTrial is None:
-                break
-            # endif
-
-            self.selTrialVariant.set_value(iTrialVarId)
-            self.UpdateTrialVariant()
-
-            if sTrialName not in self.xVariantTrial.xTrialActions.lTrialFiles:
-                break
-            # endif
-
-            self.selTrial.set_value(sTrialName)
-            self.UpdateTrial()
-
-            xActData = self.xVariantTrial.xTrialActions.GetResolvedAction(sActionPath)
-            if xActData is None:
-                break
-            # endif
-
-            self.selAction.set_value(sActionPath)
-            self.UpdateAction()
-            break
-        # endwhile dummy
-
-        if _bAll is False:
-            self.xVariantProject.UpdateFromSource(_bOverwrite=_bOverwrite)
-            self.xVariants.Serialize()
-            self.UpdateProject()
-        # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading project variant", xEx)
+        # endtry
 
     # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadTrialVariant(self, *, 
+                                      _iTrialVarId: int, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Trial Variant: {_iTrialVarId}")
+            xVariantTrial = self.xVariantProject.GetTrialVariant(_iTrialVarId)
+            if xVariantTrial is not None:
+                self.selTrialVariant.set_value(_iTrialVarId)
+                self.UpdateTrialVariant()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadTrialFile,
+                                                _sTrialName=_sTrialName,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading trial variant", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadTrialFile(self, *, 
+                                      _sTrialName: str, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Trial File: {_sTrialName}")
+            if _sTrialName in self.xVariantTrial.xTrialActions.lTrialFiles:
+                self.selTrial.set_value(_sTrialName)
+                self.UpdateTrial()
+
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadAction,
+                                                _sActionPath=_sActionPath,
+                                                _bAll=_bAll, 
+                                                _bOverwrite=_bOverwrite), once=True)
+            
+            else:
+                ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+            # endif
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading trial file", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadAction(self, *, 
+                                      _sActionPath: str,
+                                      _bAll: bool,
+                                      _bOverwrite: bool):
+        try:
+            # print(f"Reload Action: {_sActionPath}")
+            xActData = self.xVariantTrial.xTrialActions.GetResolvedAction(_sActionPath)
+            if xActData is not None:
+                self.selAction.set_value(_sActionPath)
+                self.UpdateAction()
+
+            # endif
+
+            ui.timer(0.1, functools.partial(self._OnTimer_ReloadFinal, _bAll=_bAll, _bOverwrite=_bOverwrite), once=True)
+        except Exception as xEx:
+            self.xMessage.ShowException("reloading action", xEx)
+        # endtry
+
+    # enddef
+
+    # #############################################################################################
+    def _OnTimer_ReloadFinal(self, *, _bAll: bool, _bOverwrite: bool):
+
+        self.xMessage.HideWait()
+
+    # enddef
+
 
     # #############################################################################################
     def ToggleDarkMode(self):
@@ -349,10 +477,10 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    @ui.refreshable
-    def Create(self, *, _uiLayoutHeader: ui.header, _uiLayoutRight: ui.right_drawer):
-        self._uiLayoutHeader: ui.header = _uiLayoutHeader
-        self._uiLayoutRight: ui.right_drawer = _uiLayoutRight
+    # @ui.refreshable
+    def Create(self):  
+        self._uiLayoutHeader: ui.header = ui.header(elevated=False)
+        self._uiLayoutRight: ui.right_drawer = ui.right_drawer(value=False, fixed=False)
 
         self._darkMode = ui.dark_mode()
         self._darkMode.enable()
@@ -420,8 +548,19 @@ class CPageWorkspace:
 
         self._uiLayoutRight.hide()
 
+        self.CreateDataView()
+        self.UpdateProject()
+    # enddef
+
+    # #############################################################################################
+    @ui.refreshable
+    def CreateDataView(self):
         # with ui.left_drawer(top_corner=False, bottom_corner=False):
         # # endwith left drawer
+
+        sHeaderMenuProps = "flat round size=sm"
+        sHeaderClasses = "text-h6 px-2"
+
         self._uiRowMain = ui.row().classes("w-full")
         self.xMessage.uiMain = self._uiRowMain
         with self._uiRowMain:
@@ -447,8 +586,8 @@ class CPageWorkspace:
                 # with ui.grid(columns=1).classes("w-full"):
                 with ui.element("q-list").props("padding").classes("w-full"):
                     with ui.card().classes("w-full"):
-                        with ui.row().classes("w-full"):
-                            with ui.button(icon="menu", color="slate-400").props("flat"):
+                        with ui.row().classes("bg-green-3 text-white w-full p-2"):
+                            with ui.button(icon="menu", color="slate-400").props(sHeaderMenuProps):
                                 with ui.menu():
                                     ui.menu_item("Save All", on_click=lambda: self.SaveProjectVariant())
                                     ui.menu_item(
@@ -474,6 +613,10 @@ class CPageWorkspace:
                                     )
                                 # endwith
                             # endwith
+                            ui.label("Configuration").classes(sHeaderClasses)
+                        # endwith
+
+                        with ui.row().classes("w-full"):
                             ui.button(icon="visibility", on_click=self.ShowProducts)
                             self.selProject = (
                                 ui.select(
@@ -504,10 +647,21 @@ class CPageWorkspace:
                             )
 
                         # endwith
-                        self._uiRowProjectInfo = ui.row().classes("w-full")
-                        with self._uiRowProjectInfo:
-                            ui.label("Project Info:")
-                            self.labPrjInfo = ui.label("").classes(self.sStyleTextDescSmall)
+                        # self._uiRowProjectInfo = ui.row().classes("w-full")
+                        # with self._uiRowProjectInfo:
+                        #     ui.label("Project Info:")
+                        #     self.labPrjInfo = ui.label("").classes(self.sStyleTextDescSmall)
+                        # # endwith
+
+                        self._uiExpProjectInfo = ui.expansion("Project Information", icon="description").props(
+                            "switch-toggle-side"
+                        ).classes("w-full")
+                        with self._uiExpProjectInfo:
+                            with ui.card().classes("w-full"):
+                                with ui.scroll_area():
+                                    self._uiProjectInfoMarkdown = ui.markdown("**n/a**")
+                                # endwith
+                            # endwith
                         # endwith
                     # endwith
 
@@ -516,8 +670,8 @@ class CPageWorkspace:
                     # ##################################################################################
                     # Launch file variant and global launch arguments
                     with ui.card():
-                        with ui.row().classes("w-full"):
-                            with ui.button(icon="menu", color="slate-400").props("flat"):
+                        with ui.row().classes("bg-green-4 text-white w-full p-2"):
+                            with ui.button(icon="menu", color="slate-400").props(sHeaderMenuProps):
                                 with ui.menu():
                                     ui.menu_item("Add Launch Variant", on_click=lambda: self.OnAddLaunchFileVariant())
                                     ui.menu_item(
@@ -527,6 +681,10 @@ class CPageWorkspace:
                                     )
                                 # endwith
                             # endwith
+                            ui.label("Launch: Global Arguments").classes(sHeaderClasses)
+                        # endwith
+
+                        with ui.row().classes("w-full"):
 
                             self.selLaunchFileVariant = (
                                 ui.select(options=[], on_change=lambda xArgs: self.OnChangeLaunchFileVariant(xArgs))
@@ -566,6 +724,10 @@ class CPageWorkspace:
                     # ##################################################################################
                     # Action selection and action arguments
                     with ui.card():
+                        with ui.row().classes("bg-green-4 text-white w-full p-2"):
+                            ui.label("Launch: Action").classes(sHeaderClasses)
+                        # endwith
+
                         with ui.row().classes("w-full"):
                             # ui.label("Actions").classes(self.sStyleTextTitle)
                             self.selAction = (
@@ -603,8 +765,8 @@ class CPageWorkspace:
                     # ##################################################################################
                     # Trial Variant and Trial selection
                     with ui.card():
-                        with ui.row().classes("w-full"):
-                            with ui.button(icon="menu", color="slate-400").props("flat"):
+                        with ui.row().classes("bg-green-5 text-white w-full p-2"):
+                            with ui.button(icon="menu", color="slate-400").props(sHeaderMenuProps):
                                 with ui.menu():
                                     ui.menu_item("Add Trial Variant", on_click=lambda: self.OnAddTrialVariant())
                                     ui.menu_item(
@@ -612,7 +774,10 @@ class CPageWorkspace:
                                     )
                                 # endwith
                             # endwith
+                            ui.label("Trial").classes(sHeaderClasses)
+                        # endwith
 
+                        with ui.row().classes("w-full"):
                             self.selTrialVariant = (
                                 ui.select(options=[], on_change=lambda xArgs: self.OnChangeTrialVariant(xArgs))
                                 .props('label="Trial Variant" stack-label dense options-dense filled')
@@ -657,9 +822,7 @@ class CPageWorkspace:
                         ):
                             with ui.card():
                                 with ui.element("q-list").props("padding").classes("w-full"):
-                                    self.gridTrialLocals = ui.grid(columns=4).style("padding-top: 10px")
-                                    self.gridTrialGlobals = ui.grid(columns=4).style("padding-top: 10px")
-                                    self.gridTrialConfigs = ui.grid(columns=4).style("padding-top: 10px")
+                                    self.gridTrial = ui.grid(columns=4).style("padding-top: 10px")
                                 # endwith
 
                             # endwith card
@@ -679,7 +842,6 @@ class CPageWorkspace:
         #     ui.label(f"User: {sUsername} - Client ID: {self.xClientId}").classes("text-xs")
         # # endwith
 
-        self.UpdateProject()
 
     # enddef
 
@@ -953,12 +1115,45 @@ class CPageWorkspace:
         try:
             sProjectName = self.selProject.value
             self.xProject = self.xWorkspace.Project(sProjectName)
-            if len(self.xProject.sInfo) > 0:
-                self._uiRowProjectInfo.set_visibility(True)
-                self.labPrjInfo.set_text(self.xProject.sInfo)
+
+            if len(self.xProject.sInfo) > 0 or len(self.xProject.sInfoFile) > 0:
+                self._uiExpProjectInfo.set_visibility(True)
+                if len(self.xProject.sInfo) > 0:
+                    self._uiExpProjectInfo.set_text(f"Project Info: {self.xProject.sInfo}")
+                else:
+                    self._uiExpProjectInfo.set_text("Project Info")
+                # endif
+
+                sPrjInfoFile: str = self.xProject.sInfoFile
+
+                sInfoText: str = "No additional information."
+
+                if sPrjInfoFile is not None:
+                    pathPrjInfo: Path =  Path(sPrjInfoFile)
+                    if not pathPrjInfo.is_absolute():
+                        pathPrjInfo = self.xProject.xConfig.pathLaunch / pathPrjInfo
+                    # endif
+                    pathPrjInfo = path.MakeNormPath(pathPrjInfo)
+                    if not pathPrjInfo.exists():
+                        sInfoText = f"Project info file not found at: `{str(pathPrjInfo)}`"
+                    elif not pathPrjInfo.is_file():
+                        sInfoText = f"Project info file is not a file: `{str(pathPrjInfo)}`"
+                    elif pathPrjInfo.suffix != ".md":
+                        sInfoText = f"Project info file must be a markdown file with `.md` extension: `{str(pathPrjInfo)}`"
+                    else:
+                        try:
+                            sInfoText = pathPrjInfo.read_text()
+                        except Exception as xEx:
+                            sInfoText = f"Exception while reading project info file `{str(pathPrjInfo)}`: {str(xEx)}"
+                        # endtry
+                    # endif
+                # endif
+
+                self._uiProjectInfoMarkdown.set_content(sInfoText)
+
             else:
-                self._uiRowProjectInfo.set_visibility(False)
-                self.labPrjInfo.set_text(" ")
+                self._uiExpProjectInfo.set_visibility(False)
+                self._uiExpProjectInfo.set_text("Project Info")
             # endif
 
             self.xVariants = capi.CVariants(self.xProject)
@@ -1072,7 +1267,7 @@ class CPageWorkspace:
     # enddef
 
     # #############################################################################################
-    def UpdateProjectVariant(self):
+    def UpdateProjectVariant(self, *, _iLaunchFileVarId: int = None):
         self.iBlockOnChangeTrialVariant += 1
         self.iBlockOnChangeLaunchFileVariant += 1
         try:
@@ -1095,7 +1290,7 @@ class CPageWorkspace:
             self.xVariantProject = self.xVariantGroup.GetProjectVariant(iPrjVarId)
             self.uiInputPrjVarInfo.set_value(self.xVariantProject.sInfo)
 
-            self._UpdateLaunchFileVariantSelection()
+            self._UpdateLaunchFileVariantSelection(_xSel=_iLaunchFileVarId)
             self._UpdateTrialVariantSelection()
 
             self.UpdateLaunchFileVariant()
@@ -1468,7 +1663,10 @@ class CPageWorkspace:
             pathTrial = self.xVariantTrial.GetVariantAbsPath(sTrialName)
             self.dicTrialData = config.Load(pathTrial, sDTI="/catharsys/trial:1", bReplacePureVars=False)
 
-            sTrialInfo: str = self.dicTrialData.get("sInfo")
+            xConfigCML = CConfigCML(xPrjCfg=self.xProject.xConfig, sImportPath=self.xProject.xConfig.pathLaunch.as_posix())
+            self.dicTrialDataProc = xConfigCML.Process(self.dicTrialData)
+
+            sTrialInfo: str | None = self.dicTrialDataProc.get("sInfo")
             if sTrialInfo is not None:
                 self.labTrialInfo.set_text(sTrialInfo)
                 self._uiRowTrialInfo.set_visibility(True)
@@ -1476,7 +1674,7 @@ class CPageWorkspace:
                 self._uiRowTrialInfo.set_visibility(False)
             # endif
 
-            self.dicTrialGuiArgs = self.dicTrialData.get("mGui")
+            self.dicTrialGuiArgs = self.dicTrialDataProc.get("mGui")
             if isinstance(self.dicTrialGuiArgs, dict):
                 dicDti = config.CheckConfigType(self.dicTrialGuiArgs, "/catharsys/gui/settings:1")
                 if dicDti["bOK"] is False:
@@ -1487,52 +1685,35 @@ class CPageWorkspace:
                 # endif
             # endif
 
+            dicValueSubDict = dict()
             if "__locals__" in self.dicTrialData:
-                self.vgTrialLocals = CValueGrid(
-                    _gridData=self.gridTrialLocals,
-                    _sDataId="trial:locals",
-                    _dicValues=self.dicTrialData["__locals__"],
-                    _xCtrlFactory=self.xCtrlFactory,
-                    _lExcludeRegEx=self.lExcludeLAValRegEx,
-                    _dicGuiArgs=self.dicTrialGuiArgs,
-                    _dicDefaultGuiArgs=dict(bShowAllVars=False),
-                    _funcOnChange=self.OnTrialDataChange,
-                )
-            else:
-                self.gridTrialLocals.clear()
-            # endif
+                dicValueSubDict["__locals__"] = dict(bShowAllVars=False)
+            # endif 
 
             if "__globals__" in self.dicTrialData:
-                self.vgTrialGlobals = CValueGrid(
-                    _gridData=self.gridTrialGlobals,
-                    _sDataId="trial:globals",
-                    _dicValues=self.dicTrialData["__globals__"],
-                    _xCtrlFactory=self.xCtrlFactory,
-                    _lExcludeRegEx=self.lExcludeLAValRegEx,
-                    _dicGuiArgs=self.dicTrialGuiArgs,
-                    _dicDefaultGuiArgs=dict(bShowAllVars=False),
-                    _funcOnChange=self.OnTrialDataChange,
-                )
-            else:
-                self.gridTrialLocals.clear()
-            # endif
+                dicValueSubDict["__globals__"] = dict(bShowAllVars=False)
+            # endif 
 
             if "mConfigs" in self.dicTrialData:
-                self.vgTrialConfigs = CValueGrid(
-                    _gridData=self.gridTrialConfigs,
-                    _sDataId="trial:configs",
-                    _dicValues=self.dicTrialData["mConfigs"],
+                dicValueSubDict["mConfigs"] = {
+                        "bShowAllVars": False,
+                        "mControlDefaults": {"/catharsys/gui/control/select/str:1": {"bMultiple": True}},
+                }
+            # endif
+
+            if len(dicValueSubDict) > 0:
+                self.vgTrialLocals = CValueGrid(
+                    _gridData=self.gridTrial,
+                    _sDataId="trial",
+                    _dicValues=self.dicTrialData,
                     _xCtrlFactory=self.xCtrlFactory,
                     _lExcludeRegEx=self.lExcludeLAValRegEx,
                     _dicGuiArgs=self.dicTrialGuiArgs,
-                    _dicDefaultGuiArgs={
-                        "bShowAllVars": False,
-                        "mControlDefaults": {"/catharsys/gui/control/select/str:1": {"bMultiple": True}},
-                    },
+                    _dicValueSubDict=dicValueSubDict,
                     _funcOnChange=self.OnTrialDataChange,
                 )
             else:
-                self.gridTrialConfigs.clear()
+                self.gridTrial.clear()
             # endif
 
         except Exception as xEx:
@@ -1543,7 +1724,11 @@ class CPageWorkspace:
 
     # #############################################################################################
     def SaveProjectVariant(self):
-        if self.xVariantProject is not None and self.xVariantTrial is not None:
+        if (self.xVariantProject is not None 
+            and self.xVariantTrial is not None
+            and self.selLaunchFileVariant.value is not None
+            and self.selTrial.value is not None
+        ):
             if self.bLaunchDataChanged is True:
                 # print("Start save launch data")
                 # print(f"id: {(id(self.xVariantTrial.xTrialActions.dicGlobalArgs))}")
@@ -1810,7 +1995,7 @@ class CPageWorkspace:
 
             with xPanel:
                 try:
-                    gridLaunch = ui.grid()
+                    gridLaunch = ui.grid().classes("w-full")
                     xLaunchInst.xJobInfo = CJobInfo(
                         _uiGrid=gridLaunch,
                         _xActHandler=xLaunchInst.xActHandler,

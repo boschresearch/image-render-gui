@@ -64,7 +64,10 @@ class CMessage:
                 sTitle="Exception", sIcon="thunderstorm", sBgColor="fuchsia-600", sNotifyType="negative"
             ),
         }
-        self.dlgWait: ui.dialog = ui.dialog().props("persistent")
+
+        self.dlgMain: ui.dialog = ui.dialog()
+        self.bWaitShown: bool = False
+        # self.dlgWait: ui.dialog = ui.dialog().props("persistent")
         self.uiMain: ui.element = _uiMain
 
     # enddef
@@ -80,8 +83,24 @@ class CMessage:
     # enddef
 
     # #############################################################################################
+    def _ProvideDialog(self) -> ui.dialog:
+        self.dlgMain.close()
+        self.dlgMain.clear()
+        self.bWaitShown = False
+
+        self.dlgMain.props(remove="persistent maximized fullWidth")
+        return self.dlgMain
+    # enddef
+
+    # #############################################################################################
+    def _CloseDialog(self):
+        self.dlgMain.close()
+    # enddef
+
+    # #############################################################################################
     async def AskOptions(self, _sText: str, _lOptions: list[str]):
-        dlgQuestion = ui.dialog()
+
+        dlgQuestion = self._ProvideDialog()
         with dlgQuestion:
             with ui.card():
                 with ui.row().classes("w-full"):
@@ -124,11 +143,11 @@ class CMessage:
 
     # #############################################################################################
     def ShowMessageScreen(self, *, _sText: str, _sIcon: str):
-        dlgMsg = ui.dialog().props("persistent maximized")
+        dlgMsg = self._ProvideDialog().props("persistent maximized")
         # Tailwind().background_color("white").apply(dlgMsg)
         with dlgMsg:
             with ui.card().classes("bg-primary text-white"):
-                with ui.column() as colMain:
+                with ui.column().classes("w-full") as colMain:
                     colMain.style("position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);")
                     ui.icon(_sIcon, size="xl").tailwind.align_self("center")
                     ui.label(_sText).tailwind.font_size("xl").align_self("center")
@@ -155,7 +174,7 @@ class CMessage:
 
         lLines: list[str] = _sText.splitlines()
         # with self.uiMain:
-        dlgMsg = ui.dialog().props("persistent")
+        dlgMsg = self._ProvideDialog().props("persistent")
         if _eType == EMessageType.EXCEPTION:
             dlgMsg.props("fullWidth")
         # endif
@@ -169,13 +188,13 @@ class CMessage:
                     ui.element("q-space")
                     ui.icon(xDlgCfg.sIcon, size="lg").props("flat round dense")
                 # endwith
-                with ui.card_section():
+                with ui.card_section().classes("w-full"):
                     logX = ui.log().classes("w-full h-80")
                     for sLine in lLines:
                         logX.push(sLine)
                     # endfor
                 # endwith
-                with ui.card_actions().props("align=right").classes("bg-white text-teal"):
+                with ui.card_actions().props("align=right").classes(f"{xDlgCfg.sBgColor} text-teal"):
                     ui.button("Close", on_click=dlgMsg.close).props("flat")
                 # endwith
             # endwith
@@ -260,8 +279,8 @@ class CMessage:
 
     # #############################################################################################
     def ShowWait(self, _sText: str = None):
-        self.dlgWait.clear()
-        with self.dlgWait:
+        dlgWait = self._ProvideDialog().props("persistent")
+        with dlgWait:
             with ui.card().classes("w-64"):
                 with ui.column().classes("w-full items-center"):
                     with ui.row():
@@ -275,14 +294,19 @@ class CMessage:
                 # endwith column
             # endwith card
         # endwith dialog
-        self.dlgWait.open()
+        self.bWaitShown = True
+        dlgWait.open()
+
 
     # enddef
 
     # #############################################################################################
     def HideWait(self):
-        self.dlgWait.close()
-
+        if self.bWaitShown is True:
+            self._CloseDialog()
+            self.bWaitShown = False
+        # endif
+        
     # enddef
 
 

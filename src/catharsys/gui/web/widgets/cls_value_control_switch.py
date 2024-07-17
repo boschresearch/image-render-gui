@@ -58,6 +58,10 @@ class CValueControlSwitch(CValueControl):
             text=self._sLabel, value=bValue, on_change=lambda xArgs: self.OnChange(xArgs)
         )
 
+        if self._sTooltip is not None:
+            self._uiCtrl.tooltip(self._sTooltip)
+        # endif
+
     # enddef
 
     # ###################################################################################

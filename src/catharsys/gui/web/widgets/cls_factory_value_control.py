@@ -104,7 +104,7 @@ class CFactoryValueControl:
         dicCtrl = {
             "sDTI": sDti,
             "sLabel": sLabel,
-            "sTooltip": sLabel,
+            # "sTooltip": sLabel,
         }
         return dicCtrl
 

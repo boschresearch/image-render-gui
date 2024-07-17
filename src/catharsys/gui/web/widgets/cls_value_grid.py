@@ -22,6 +22,7 @@
 
 import re
 from typing import Optional, Callable, Any
+import copy
 
 from nicegui import ui, events
 from anybase import config
@@ -33,6 +34,20 @@ from .cls_value_control import CValueControl
 
 
 class CValueGrid:
+    """Administers a grid of value controls.
+
+    Args:
+        _gridData (ui.grid): The grid to which the controls are added.
+        _dicValues (dict): The dictionary of values.
+        _xCtrlFactory (CFactoryValueControl): The factory for creating value controls.
+        _lExcludeRegEx (list, optional): List of regular expressions for excluding values. Defaults to [].
+        _dicGuiArgs (dict, optional): Dictionary of GUI arguments. Defaults to None.
+        _dicDefaultGuiArgs (dict, optional): Dictionary of default GUI arguments. Defaults to dict().
+        _sDataId (str, optional): The data ID. Defaults to None.
+        _lValueSubDict (dict[str, dict], optional): Dictionary of keys into value dictionary with value of gui args. Defaults to None.
+        _funcOnChange (Callable[[events.ValueChangeEventArguments, dict, str, Any], bool], optional): Function to call when a value changes. Defaults to None.
+
+    """
     def __init__(
         self,
         *,
@@ -43,9 +58,19 @@ class CValueGrid:
         _dicGuiArgs: Optional[dict] = None,
         _dicDefaultGuiArgs: Optional[dict] = dict(),
         _sDataId: str = None,
+        _dicValueSubDict: dict[str, dict] | None = None,
         _funcOnChange: Optional[Callable[[events.ValueChangeEventArguments, dict, str, Any], bool]] = None,
     ):
         self._dicValues: dict = _dicValues
+        self._dicValueSubDict: dict[str, dict] | None = _dicValueSubDict
+        if self._dicValueSubDict is not None:
+            for sKey in self._dicValueSubDict:
+                if sKey not in self._dicValues:
+                    raise RuntimeError(f"Key '{sKey}' not found in values dictionary")
+                # endif
+            # endfor
+        # endif
+
         self._gridData: ui.grid = _gridData
         self._xCtrlFactory: CFactoryValueControl = _xCtrlFactory
         self._dicCtrl: dict[str, CValueControl] = {}
@@ -68,15 +93,15 @@ class CValueGrid:
 
         # print(f"dicGuiArgs: {self._dicGuiArgs}")
 
-        self._dicGuiVarDef: dict = self._dicGuiArgs.get("mVars", dict())
-        self._dicGuiCtrlDefaults: dict[str, dict[str, Any]] = self._dicGuiArgs.get("mControlDefaults", dict())
+        # self._dicGuiVarDef: dict = self._dicGuiArgs.get("mVars", dict())
+        # self._dicGuiCtrlDefaults: dict[str, dict[str, Any]] = self._dicGuiArgs.get("mControlDefaults", dict())
 
-        # if true: all vars are shown apart from those listed in lExcludeVars
-        # if false: only vars are shown that have a gui definition or are listed in lIncludeVars
-        #              and are not listed in lExcludeVars.
-        self._bShowAllVars = convert.DictElementToBool(self._dicGuiArgs, "bShowAllVars", bDefault=True)
-        self._lIncludeVars = convert.DictElementToStringList(self._dicGuiArgs, "lIncludeVars", lDefault=[])
-        self._lExcludeVars = convert.DictElementToStringList(self._dicGuiArgs, "lExcludeVars", lDefault=[])
+        # # if true: all vars are shown apart from those listed in lExcludeVars
+        # # if false: only vars are shown that have a gui definition or are listed in lIncludeVars
+        # #              and are not listed in lExcludeVars.
+        # self._bShowAllVars = convert.DictElementToBool(self._dicGuiArgs, "bShowAllVars", bDefault=True)
+        # self._lIncludeVars = convert.DictElementToStringList(self._dicGuiArgs, "lIncludeVars", lDefault=[])
+        # self._lExcludeVars = convert.DictElementToStringList(self._dicGuiArgs, "lExcludeVars", lDefault=[])
 
         iColumnCount: int = 4
 
@@ -105,12 +130,32 @@ class CValueGrid:
             self._gridData.set_visibility(True)
             with _gridData:
                 sValName: str = None
-                for sValName in self._dicValues:
-                    xCtrl = self.GetControl(sValName)
-                    if xCtrl is not None:
-                        self._dicCtrl[sValName] = xCtrl
-                    # endif
-                # endfor
+                if self._dicValueSubDict is None:
+                    for sValName in self._dicValues:
+                        xCtrl = self.GetControl(sValName, self._dicValues, self._dicGuiArgs)
+                        if xCtrl is not None:
+                            self._dicCtrl[sValName] = xCtrl
+                        # endif
+                    # endfor
+                else:
+                    for sSubDictId, dicSubGuiArgs in self._dicValueSubDict.items():
+                        dicSubValues: dict = self._dicValues[sSubDictId]
+                        if isinstance(dicSubGuiArgs, dict):
+                            dicEffGuiArgs = copy.deepcopy(self._dicGuiArgs)
+                            dicEffGuiArgs.update(dicSubGuiArgs)
+                        else:
+                            dicEffGuiArgs = self._dicGuiArgs
+                        # endif
+
+                        for sValName in dicSubValues:
+                            xCtrl = self.GetControl(sValName, dicSubValues, dicEffGuiArgs)
+                            if xCtrl is not None:
+                                self._dicCtrl[sValName] = xCtrl
+                            # endif
+                        # endfor
+                       
+                    # endfor
+                # endif 
             # endwith
 
         else:
@@ -126,7 +171,7 @@ class CValueGrid:
                     uiCard = ui.card().tight().props("flat bordered").classes("w-full")
                     with uiCard:
                         if len(sTitle) > 0:
-                            with ui.card_section().classes("bg-teal text-white"):
+                            with ui.row().classes("bg-teal text-white w-full px-2"):
                                 ui.label(sTitle).classes("text-subtitle2")
                             # endwith
                             # ui.separator().props("inset")
@@ -138,12 +183,27 @@ class CValueGrid:
                                 for lRow in lRows:
                                     with ui.row().classes("w-full"):
                                         for sValName in lRow:
-                                            if sValName not in self._dicValues:
+                                            dicValues: dict = self._dicValues
+                                            dicEffGuiArgs: dict = self._dicGuiArgs
+                                            if isinstance(self._dicValueSubDict, dict):
+                                                for sSubDictId, dicSubGuiArgs in self._dicValueSubDict.items():
+                                                    if sValName in self._dicValues[sSubDictId]:
+                                                        dicValues = self._dicValues[sSubDictId]
+                                                        if isinstance(dicSubGuiArgs, dict):
+                                                            dicEffGuiArgs = copy.deepcopy(self._dicGuiArgs)
+                                                            dicEffGuiArgs.update(dicSubGuiArgs)
+                                                        # endif
+                                                        break
+                                                    # endif
+                                                # endfor
+                                            # endif
+
+                                            if sValName not in dicValues:
                                                 raise RuntimeError(
                                                     f"Variable '{sValName}' in row layout for data type '{_sDataId}' not available"
                                                 )
                                             # endif
-                                            xCtrl = self.GetControl(sValName)
+                                            xCtrl = self.GetControl(sValName, dicValues, dicEffGuiArgs)
                                             if xCtrl is not None:
                                                 if sValName in self._dicCtrl:
                                                     raise RuntimeError(
@@ -169,16 +229,29 @@ class CValueGrid:
     # enddef
 
     # ##########################################################################################################
-    def GetControl(self, sValName: str) -> Optional[CValueControl]:
+    def GetControl(self, 
+                   _sValName: str, 
+                   _dicValues: dict, 
+                   _dicGuiArgs: dict) -> Optional[CValueControl]:
         xCtrl: CValueControl = None
 
-        if len(sValName) < 2 or "/" in sValName:
+        if len(_sValName) < 2 or "/" in _sValName:
             return None
         # endif
 
+        dicGuiVarDef: dict = _dicGuiArgs.get("mVars", dict())
+        dicGuiCtrlDefaults: dict[str, dict[str, Any]] = _dicGuiArgs.get("mControlDefaults", dict())
+
+        # if true: all vars are shown apart from those listed in lExcludeVars
+        # if false: only vars are shown that have a gui definition or are listed in lIncludeVars
+        #              and are not listed in lExcludeVars.
+        bShowAllVars = convert.DictElementToBool(_dicGuiArgs, "bShowAllVars", bDefault=True)
+        lIncludeVars = convert.DictElementToStringList(_dicGuiArgs, "lIncludeVars", lDefault=[])
+        lExcludeVars = convert.DictElementToStringList(_dicGuiArgs, "lExcludeVars", lDefault=[])
+
         xMatch = None
         for reExclude in self._lReExclude:
-            xMatch = reExclude.fullmatch(sValName)
+            xMatch = reExclude.fullmatch(_sValName)
             if xMatch is not None:
                 break
             # endif
@@ -187,19 +260,19 @@ class CValueGrid:
             return None
         # endif
 
-        if sValName in self._lExcludeVars:
+        if _sValName in lExcludeVars:
             return None
         # endif
 
         try:
-            sNameTypeDef = f"{sValName}/gui"
-            dicTypeDef: dict = self._dicValues.get(sNameTypeDef)
+            sNameTypeDef = f"{_sValName}/gui"
+            dicTypeDef = _dicValues.get(sNameTypeDef)
             if not isinstance(dicTypeDef, dict):
-                dicTypeDef = self._dicGuiVarDef.get(sValName)
+                dicTypeDef = dicGuiVarDef.get(_sValName)
             # endif
             # print(f"dicGuiVarDef[{sValName}]: {dicTypeDef}")
 
-            if self._bShowAllVars is False and dicTypeDef is None and sValName not in self._lIncludeVars:
+            if bShowAllVars is False and dicTypeDef is None and _sValName not in lIncludeVars:
                 return None
             # endif
 
@@ -217,13 +290,13 @@ class CValueGrid:
                 # endtry
 
                 if bUseCfgFromName is True:
-                    dicDefTypeCfg = self._xCtrlFactory.GetControlConfigFromName(sValName)
+                    dicDefTypeCfg = self._xCtrlFactory.GetControlConfigFromName(_sValName)
                     dicDefTypeCfg.update(dicTypeDef)
                     dicTypeDef = dicDefTypeCfg
                 # endif
 
                 if dicTypeDef is not None:
-                    for sCtrlDti, dicCtrlArgs in self._dicGuiCtrlDefaults.items():
+                    for sCtrlDti, dicCtrlArgs in dicGuiCtrlDefaults.items():
                         dicCtrlDti = config.CheckConfigType(dicTypeDef, sCtrlDti)
                         if dicCtrlDti["bOK"] is True:
                             dicTypeDef.update(dicCtrlArgs)
@@ -237,19 +310,19 @@ class CValueGrid:
             # xValue = _dicValues[sValName]
             if dicTypeDef is not None:
                 xCtrl = self._xCtrlFactory.FromDict(
-                    sValName,
+                    _sValName,
                     _dicCtrl=dicTypeDef,
-                    _dicData=self._dicValues,
+                    _dicData=_dicValues,
                     _funcOnChange=self._funcOnChange,
                 )
             else:  # if bEmptyGuiDict is True:
                 xCtrl = self._xCtrlFactory.FromName(
-                    sValName, _dicData=self._dicValues, _funcOnChange=self._funcOnChange
+                    _sValName, _dicData=_dicValues, _funcOnChange=self._funcOnChange
                 )
             # endif
         except Exception as xEx:
             ui.notify(
-                f"Error creating control for value '{sValName}'\n{(str(xEx))}",
+                f"Error creating control for value '{_sValName}'\n{(str(xEx))}",
                 multiLine=True,
                 classes="multi-line-notification",
             )
