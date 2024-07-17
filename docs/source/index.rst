@@ -25,8 +25,8 @@ Web GUI
    :maxdepth: 4
    :caption: Contents:
 
-   get_started
    workflow_ex1
+   get_started
    image_viewer
    modify_configs
    reference/main

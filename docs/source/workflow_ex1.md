@@ -2,13 +2,17 @@
 
 This is a walkthrough of a typical workflow using Catharsys for rendering and post-processing with the web GUI. 
 
-To follow along with this example, clone the workspace [`image-render-workspace-ex-gui`](https://github.com/boschresearch/image-render-workspace-ex-gui) and run 
+To follow along with this example, you, first of all, need to have Catharsys installed ({external+image-render-setup:doc}`setup`). Then clone the workspace [`image-render-workspace-ex-gui`](https://github.com/boschresearch/image-render-workspace-ex-gui) and run 
 
 ```{admonition} Shell
 cathy blender init --all --addons
 ```
 
-This only works if Blender 4.1 is already installed in the Catharsys system. Otherwise, install Blender in Catharsys as described [here](https://boschresearch.github.io/image-render-setup/html/setup.html#blender).
+This only works if Blender 4.1 is already installed in the Catharsys system. Otherwise, install Blender in Catharsys as described here: {external+image-render-setup:ref}`blender-setup`.
+
+```{admonition} TL;DR
+Open a terminal in the main folder of the cloned example workspace, run `cathy gui ws` which should open a web browser, select configuration `ex3` in the shown workspace view, select action `render`, click `prepare launch`, launch the render, go back to workspace tab, click the eye-icon, click `Scan Filesystem` and then `Update View`.
+```
 
 ## 1. Prepare the Project
 
@@ -20,7 +24,7 @@ If you cloned the example, it is already prepared and you can go to section 2.
 
 If you just use a standard configuration you will also have a minimal GUI that allows you to start renders and post-processing actions. However, not all arguments you are interested in may be visible and the GUI can be overloaded with parameters a user doesn't need to or shouldn't change.
 
-- To specify what parameters are displayed how, see {doc}`modify_config` and the reference sections {doc}`reference/controls` and {doc}`reference/gui_def`.
+- To specify what parameters are displayed how, see {doc}`modify_configs` and the reference sections {doc}`reference/controls` and {doc}`reference/gui_def`.
 - To see the rendered images in the image viewer, you first need to specify the path structure of the rendered images in the `production.json` configuration. See {doc}`image_viewer` and {external+image-render-automation:doc}`products/analyze` for a detailed description.
 - To allow the user to flag or evaluate images or categories, see {external+image-render-automation:doc}`products/categorize` for a detailed description. The example configurations `ex1`, `ex2` and `ex3` of `image-render-workspace-ex-gui` contain such a definition.
 
@@ -33,15 +37,19 @@ To run the web server locally with standard settings, just execute
     cathy gui ws
 ```
 
+![Workspace View](assets/walkthrough-ex1-view-01.png)
+
 You can access the web server with an `http` instead of a `https`-connection by starting it with the option `--no-ssl`:
 
 ```{admonition} Shell
     cathy gui ws --no-ssl
 ```
 
-This will open a web-browser automatically with the workspace view. You can also start the web server on any other machine and then connect to it via one of the IP adresses shown in the terminal. You may have to establish an SSH tunnel for this to work. If you are using a terminal in VSCode on a remote machine, then VSCode will establish an SSH tunnel automatically.
+This will open a web-browser automatically with the workspace view. You can also start the web server on any other machine and then connect to it via one of the IP adresses shown in the terminal. You may have to establish an SSH tunnel for this to work. If you are using a terminal in VSCode on a remote machine, then VSCode will establish an SSH tunnel automatically. For more details on setting up the web server and creating user accounts, see {doc}`get_started`.
 
-![Workspace View](assets/walkthrough-ex1-view-01.png)
+```{important}
+Note that all configuration variants and other settings and result data, are stored independently per OS-user. This allows multiple OS-users to run web servers on the same workspace concurrently.
+```
 
 ## 3. Set the Parameters
 

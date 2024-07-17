@@ -117,7 +117,7 @@ For example, if `iColumnCount` is 2, the groups of variables listed in `lGroups`
 
 This layout definition generates the following view:
 
-![Gird Layout](assets/workspace-grid-layout-01.png)
+![Gird Layout](../assets/workspace-grid-layout-01.png)
 
 
 

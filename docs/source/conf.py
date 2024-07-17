@@ -110,4 +110,9 @@ if pathConfig.exists():
             f"../../../../docs/build/{sModule}/html/objects.inv",
         )
     # endfor
+    
+    intersphinx_mapping["image-render-setup"] = (
+        "../../html",
+        "../../../../docs/build/html/objects.inv",
+    )
 # endif

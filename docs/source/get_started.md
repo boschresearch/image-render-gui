@@ -26,9 +26,13 @@ If you need to secure access to the web server, you should create an admin user 
 cathy gui ws --add-admin [your username]
 ```
 
-You will be prompted for a password, which you need to repeat in a second step. This user and password are completely independent of your Windows/Linux user. This is just used for this web server. The user data is stored in the file `.cathgui/[Windows/Linux username]/gui-web-user.json`, whereby the passwords are hashed. 
+You will be prompted for a password, which you need to repeat in a second step. This user and password are completely independent of your Windows/Linux user. This is just used for this web server. The user data is stored in the file `.cathgui/[Windows/Linux username]/gui-web-user.json`, where the passwords are hashed. 
 
 **This is just a very simple user management structure. Anybody who has access to the workspace folder, can remove or change the users.**
+
+```{important}
+Note that all configuration variants and other settings and result data, are stored independently per OS-user. This allows multiple OS-users to run web servers on the same workspace concurrently.
+```
 
 ## Web Config
 
