@@ -1741,11 +1741,6 @@ class CPageWorkspace:
                     self.xVariantTrial.xTrialActions.dicLaunch,
                 )
 
-                iLaunchVarId: int = self.selLaunchFileVariant.value
-                self.xVariantProject.SelectLaunchFileVariant(iLaunchVarId)
-                # print(f"After select Global args id: {(id(self.xVariantTrial.xTrialActions.dicGlobalArgs))}")
-                # print(self.xVariantTrial.xTrialActions.dicGlobalArgs)
-
                 # print("SaveLaunchVariant")
                 # print(f"> path: {self.xVariantLaunch.pathLaunchFile}")
                 # print(self.xVariantTrial.xTrialActions.dicLaunch)
