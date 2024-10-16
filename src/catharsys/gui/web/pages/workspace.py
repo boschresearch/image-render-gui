@@ -1116,7 +1116,7 @@ class CPageWorkspace:
             sProjectName = self.selProject.value
             self.xProject = self.xWorkspace.Project(sProjectName)
 
-            if len(self.xProject.sInfo) > 0 or len(self.xProject.sInfoFile) > 0:
+            if len(self.xProject.sInfo) > 0 or self.xProject.sInfoFile is not None:
                 self._uiExpProjectInfo.set_visibility(True)
                 if len(self.xProject.sInfo) > 0:
                     self._uiExpProjectInfo.set_text(f"Project Info: {self.xProject.sInfo}")
