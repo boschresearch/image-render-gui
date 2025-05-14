@@ -54,6 +54,7 @@ class CPosRange:
         _eStyle: EPosRangeStyle = EPosRangeStyle.ROW,
         _sLabel: str = "Value",
         _funcOnChanged: Optional[Callable[[Element, float, float, bool], Any]] = None,
+        _bUseRangeStep: bool = False,
     ) -> None:
         self._fMin: float = _fMin
         self._fMax: float = _fMax
@@ -62,6 +63,7 @@ class CPosRange:
         self._fStep: float = _fStep
         self._eStyle: EPosRangeStyle = _eStyle
         self._sLabel: str = _sLabel
+        self._bUseRangeStep: bool = _bUseRangeStep
 
         if _fRangeMin is not None and _fRangeMax is not None and _fRangeMin > _fRangeMax:
             fVal = _fRangeMin
@@ -83,6 +85,7 @@ class CPosRange:
         # endif
 
         self._fRange = min(max(self._fRange, self._fRangeMin), self._fRangeMax)
+
         self._fValMax = self._fValMin + self._fRange
         if self._bHasIntStep is True:
             self._fValMax -= self._fStep
@@ -181,11 +184,17 @@ class CPosRange:
             fMax += self._fStep
         # endif
 
+        if self._bUseRangeStep:
+            fStep = self._fRange
+        else:
+            fStep = self._fStep
+        # endif
+
         self._uiSliderPos: ui.slider = (
             ui.slider(
                 min=self._fMin,
                 max=fMax,
-                step=self._fStep,
+                step=fStep,
                 value=self._fValMin,
                 on_change=self._OnChangePos,
             )
@@ -239,6 +248,8 @@ class CPosRange:
             self._fValMax -= self._fStep
         # endif
 
+        self._fValMax = min(self._fValMax, self._fMax)
+
         self._uiBadgePos.set_text(self._GetPosText())
 
     # enddef
@@ -273,11 +284,24 @@ class CPosRange:
     # ####################################################################################################
     def _OnRangeChanged(self, _xArgs: ValueChangeEventArguments):
         fPosMax: float = self._fMax - self._fRange
-        if self._bHasIntStep is True:
-            fPosMax += self._fStep
+
+        if self._bUseRangeStep:
+            fStep = self._fRange
+            if self._bHasIntStep is True:
+                fPosMax += 1
+            # endif
+        else:
+            fStep = self._fStep
+            if self._bHasIntStep is True:
+                fPosMax += fStep
+            # endif
         # endif
 
+
+        fPosMax = min(fPosMax, self._fMax)
+
         self._uiSliderPos._props["max"] = fPosMax
+        self._uiSliderPos._props["step"] = fStep
         self._fValMin = self._fPos = min(self._fValMin, fPosMax)
         self._uiSliderPos.set_value(self._fValMin)
         self._uiSliderPos.update()
