@@ -13,3 +13,4 @@ _testlog_*
 *.code-workspace
 .catharsys
 .vscode
+.mypy_cache

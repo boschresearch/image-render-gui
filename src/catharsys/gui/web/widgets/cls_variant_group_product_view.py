@@ -1124,6 +1124,7 @@ class CVariantGroupProductView:
                                             _sLabel=sDimName,
                                             _eStyle=EPosRangeStyle.STACKED,
                                             _funcOnChanged=self._OnChangeViewRange,
+                                            _bUseRangeStep=True,
                                         )
                                     # endif
 
@@ -1141,6 +1142,7 @@ class CVariantGroupProductView:
                                             _sLabel=sDimName,
                                             _eStyle=EPosRangeStyle.STACKED,
                                             _funcOnChanged=self._OnChangeViewRange,
+                                            _bUseRangeStep=True,
                                         )
                                     # endif
 
@@ -1170,6 +1172,7 @@ class CVariantGroupProductView:
                                         _sLabel=sArtVarName,
                                         _eStyle=EPosRangeStyle.STACKED,
                                         _funcOnChanged=self._OnChangeViewRange,
+                                        _bUseRangeStep=True,
                                     )
                                 # endif
                             # endfor art vars
