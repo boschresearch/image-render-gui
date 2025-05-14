@@ -147,7 +147,6 @@ class CPageProductViewer:
     # enddef
 
     # #############################################################################################
-    @ui.refreshable
     def Create(self):
         try:
             if self.sProjectId not in self.wsX.dicProjects:
@@ -174,12 +173,7 @@ class CPageProductViewer:
                 ui.label(f"View {self.wsX.sName} v{self.wsX.sVersion}, {self.sProjectId}").classes("text-h4")
             # endwith
 
-            uiRowView = ui.row().classes("w-full")
-            self.xProductViewer = CVariantGroupProductView(
-                _uiRow=uiRowView,
-                _xVariantGroup=self.xVariantGroup,
-                # _funcOnClose=lambda: self.CloseProductView(sPrjId),
-            )
+            self._DoCreateContent()
 
         except Exception as xEx:
             self.xMessage.ShowMessage(f"EXCEPTION creating product viewer:\n{(str(xEx))}")
@@ -187,5 +181,16 @@ class CPageProductViewer:
 
     # enddef
 
+    # #############################################################################################
+    @ui.refreshable
+    def _DoCreateContent(self):
+
+        uiRowView = ui.row().classes("w-full")
+        self.xProductViewer = CVariantGroupProductView(
+            _uiRow=uiRowView,
+            _xVariantGroup=self.xVariantGroup,
+            # _funcOnClose=lambda: self.CloseProductView(sPrjId),
+        )
+    # enddef
 
 # endclass

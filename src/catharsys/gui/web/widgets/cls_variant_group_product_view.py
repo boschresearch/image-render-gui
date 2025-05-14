@@ -25,7 +25,7 @@ import enum
 import asyncio
 import functools
 import concurrent
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from nicegui import ui, Tailwind, events
 from typing import Callable, Optional, Union, Any
@@ -414,7 +414,7 @@ class CVariantGroupProductView:
         # endif
 
         fTime: float = os.path.getmtime(pathScanCache.as_posix())
-        dtFile = datetime.utcfromtimestamp(fTime)
+        dtFile = datetime.fromtimestamp(fTime)
 
         return dtFile.strftime("%d.%m.%Y, %H:%M:%S")
 
@@ -1786,6 +1786,7 @@ class CVariantGroupProductView:
                                 await self._ShowViewDimCol(_xViewDimNode=xViewDimNodeCol)
                             # endif
 
+                            await asyncio.sleep(0)
                             _xViewDimNode.Next()
                         # endif
                     # endfor
