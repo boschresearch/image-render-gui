@@ -92,7 +92,12 @@ class CThumbnails:
             iTimeImage = 0
         # endif
 
-        pathRel: Path = self.GetRelativePath(_pathImage)
+        pathRel: Path
+        try:
+            pathRel = self.GetRelativePath(_pathImage)
+        except Exception:
+            pathRel = _pathImage
+        # endtry
         sId: str = pathRel.as_posix()
         hashMD5 = hashlib.md5(sId.encode("utf8"))
         sName = base64.b32encode(hashMD5.digest()).decode()
